@@ -6,20 +6,24 @@ local BASE_SPEED = 30
 local BASE_SPEED_MODIFIER = 1
 local SHIFT_SPEED_MODIFIER = 3
 
+local PITCH_TORQUE = 600
+local YAW_TORQUE = 600
+local ROLL_TORQUE = 320
+local MAX_ANGULAR_SPEED = 180
+
 local FORWARD_DRAG = 0.8
 local LATERAL_DRAG = 14
+local ANGULAR_DRAG = 0.8
 
-local ROTATION_SPEED_MODIFIER = 500
-local ROTATION_MAX_ACCELERATION = 500
-local ROLL_SPEED_MODIFIER = 30
-local ROLL_MAX_ACCELERATION = 30
-local BASE_ROTATION_RESPONSE_TIME = 0.75
+local FUSE_TIMER = 0.25
 
 local targetSpeed = 0
-local currentVelocity = Vec(0, 0, 0)
-local currentRotationX = 0
-local currentRotationY = 0
-local currentRotationZ = 0
+local velocity = Vec(0, 0, 0)
+local angularVelocity = Vec(0, 0, 0)
+
+local fuseTimer = FUSE_TIMER
+local armed = false
+
 
 local savedCameraRotation
 
@@ -116,10 +120,11 @@ function GuidedExplode()
   isMissileFlying = false
   isMissileDetached = false
   targetSpeed = 0
-  currentVelocity = Vec(0, 0, 0)
-  currentRotationX = 0
-  currentRotationY = 0
-  currentRotationZ = 0
+  velocity = Vec(0, 0, 0)
+  angularVelocity = Vec(0, 0, 0)
+  armed = false
+  fuseTimer = FUSE_TIMER
+
   Delete(rocketProjectile[1])
 end
 
@@ -137,18 +142,12 @@ function GuidedCheckHit()
   local dir = VecNormalize(VecSub(fwdpos, guidedmissiletip))
   QueryRejectBody(rocketProjectile[1])
 
-  local hit, dist = QueryRaycast(guidedmissiletip, dir, VecLength(VecSub(fwdpos, guidedmissiletip)), 0.1)
+  local hit, dist, normal, shape = QueryRaycast(guidedmissiletip, dir, VecLength(VecSub(fwdpos, guidedmissiletip)), 0.1)
+  local material = GetShapeMaterialAtPosition(shape, fwdpos)
 
   if hit then
-    if piercing then
-      MakeHole(fwdpos, 1, 1, 1)
-    else
-      if not isMissileDetached then
-        RestoreCameraRotation()
-      end
-
-      GuidedExplode()
-    end
+    MakeHole(fwdpos, 1, 1, 1)
+    armed = true
   end
 end
 
@@ -207,29 +206,41 @@ function tick(deltaTime)
     isMissileDetached = true
   end
 
+  if isMissileFlying or isMissileDetached then
+    if armed then
+      fuseTimer = fuseTimer - deltaTime
+      if fuseTimer <= 0 then
+        if not isMissileDetached then
+          RestoreCameraRotation()
+        end
+
+        GuidedExplode()
+      end
+    end
+  end
+
   -- Movement update
   if isMissileFlying then
     -- Input
-    local xMouse, yMouse, shiftDown = InputValue("camerax"), InputValue("cameray"), InputDown("shift")
+    local mouseX, mouseY = InputValue("camerax"), InputValue("cameray")
     local missileSpeedModifier = BASE_SPEED_MODIFIER
-    local rotationSpeedModifier = ROTATION_SPEED_MODIFIER
 
-    local deltaZ = 0
+    local rollInput = 0
     if InputDown("q") then
-      deltaZ = deltaZ - 1
+      rollInput = rollInput - 1
     end
 
     if InputDown("e") then
-      deltaZ = deltaZ + 1
+      rollInput = rollInput + 1
+    end
+
+    if InputDown("shift") then
+      missileSpeedModifier = SHIFT_SPEED_MODIFIER
     end
 
     local guidedct = GetCameraTransform()
     if not guidedmissile.pos then guidedmissile.pos = guidedct.pos end
     if not guidedmissile.rot then guidedmissile.rot = guidedct.rot end
-
-    if shiftDown then
-      missileSpeedModifier = SHIFT_SPEED_MODIFIER
-    end
 
     -- Velocity
 
@@ -238,58 +249,65 @@ function tick(deltaTime)
 
     -- Apply thrust
     targetSpeed = BASE_SPEED * missileSpeedModifier
-    local speed = VecDot(currentVelocity, forward)
-    local velDir = VecNormalize(currentVelocity)
+    local speed = VecDot(velocity, forward)
+    local velDir = VecNormalize(velocity)
     local alignment = VecDot(velDir, forward)
     alignment = clamp(alignment, 0, 1)
     speedFactor = (1 - speed/targetSpeed) * alignment
 
     local acceleration = VecScale(forward, THRUST * speedFactor)
-    currentVelocity = VecAdd(currentVelocity, VecScale(acceleration, deltaTime))
+    velocity = VecAdd(velocity, VecScale(acceleration, deltaTime))
 
     -- Decompose updated velocity
-    local forwardSpeed = VecDot(currentVelocity, forward)
+    local forwardSpeed = VecDot(velocity, forward)
     local forwardVelocity = VecScale(forward, forwardSpeed)
-    local lateralVelocity = VecSub(currentVelocity, forwardVelocity)
+    local lateralVelocity = VecSub(velocity, forwardVelocity)
 
     -- Apply drag
     forwardVelocity = VecScale(forwardVelocity, math.exp(-FORWARD_DRAG * deltaTime))
     lateralVelocity = VecScale(lateralVelocity, math.exp(-LATERAL_DRAG * deltaTime))
 
     -- Recombine
-    currentVelocity = VecAdd(forwardVelocity, lateralVelocity)
+    velocity = VecAdd(forwardVelocity, lateralVelocity)
 
     -- Integrate
-    guidedmissile.pos = VecAdd(guidedmissile.pos, VecScale(currentVelocity, deltaTime))
+    guidedmissile.pos = VecAdd(guidedmissile.pos, VecScale(velocity, deltaTime))
 
 
 
-    -- Rotation Pitch-Yaw
-    local currentSpeed = VecLength(currentVelocity)
+    -- Rotation
+    local avLen = VecLength(angularVelocity)
+    if avLen > MAX_ANGULAR_SPEED then
+      angularVelocity = VecScale(
+          VecNormalize(angularVelocity),
+          MAX_ANGULAR_SPEED
+      )
+    end
 
-    local speedTurnModifier = 1 / (math.max(currentSpeed, 0.01) / BASE_SPEED)
-    local alpha = expSmoothingAlpha(BASE_ROTATION_RESPONSE_TIME * speedTurnModifier, deltaTime)
-    local targetRotationX = lerp(currentRotationX, xMouse * rotationSpeedModifier * speedTurnModifier, alpha)
-    local targetRotationY = lerp(currentRotationY, yMouse * rotationSpeedModifier * speedTurnModifier, alpha)
+    angularVelocity = VecAdd(
+        angularVelocity,
+        Vec(
+            -mouseY * PITCH_TORQUE * deltaTime,
+            -mouseX * YAW_TORQUE * deltaTime,
+            -rollInput * ROLL_TORQUE * deltaTime
+        )
+    )
 
-    local rotationAccelerationStep = ROTATION_MAX_ACCELERATION * deltaTime
-    local deltaX = clamp(targetRotationX - currentRotationX, -rotationAccelerationStep, rotationAccelerationStep)
-    local deltaY = clamp(targetRotationY - currentRotationY, -rotationAccelerationStep, rotationAccelerationStep)
+    -- Roll affects yaw stability
+    local rollEffect = angularVelocity[3] * 0.2
+    angularVelocity[1] = angularVelocity[1] + rollEffect * deltaTime
 
-    currentRotationX = currentRotationX + deltaX
-    currentRotationY = currentRotationY + deltaY
+    -- Damping
+    angularVelocity = VecScale(angularVelocity, math.exp(-ANGULAR_DRAG * deltaTime))
 
-    -- Rotation Roll
-    local targetRotationZ = deltaZ * ROLL_SPEED_MODIFIER
-    local rollAccelerationStep = ROLL_MAX_ACCELERATION * deltaTime
-    local deltaRoll = clamp(targetRotationZ - currentRotationZ, -rollAccelerationStep, rollAccelerationStep)
+    -- Integrate
+    local deltaRot = QuatEuler(
+        angularVelocity[1] * deltaTime,
+        angularVelocity[2] * deltaTime,
+        angularVelocity[3] * deltaTime
+    )
 
-    currentRotationZ = currentRotationZ + deltaRoll
-
-    -- Apply rotation
-    --guidedmissile.rot = QuatLookAt(guidedmissile.pos, forwardPos)
-    guidedmissile.rot = QuatRotateQuat(guidedmissile.rot, QuatEuler(-targetRotationY * deltaTime, -targetRotationX * deltaTime, -currentRotationZ * deltaTime))
-
+    guidedmissile.rot = QuatRotateQuat(guidedmissile.rot, deltaRot)
 
 
     -- Camera and effects
@@ -332,29 +350,29 @@ function tick(deltaTime)
     local forward = TransformToParentVec(guidedmissile, Vec(0, 0, -1))
 
     -- Apply thrust
-    local speed = VecDot(currentVelocity, forward)
-    local velDir = VecNormalize(currentVelocity)
+    local speed = VecDot(velocity, forward)
+    local velDir = VecNormalize(velocity)
     local alignment = VecDot(velDir, forward)
     alignment = clamp(alignment, 0, 1)
     speedFactor = (1 - speed/targetSpeed) * alignment
 
     local acceleration = VecScale(forward, THRUST * speedFactor)
-    currentVelocity = VecAdd(currentVelocity, VecScale(acceleration, deltaTime))
+    velocity = VecAdd(velocity, VecScale(acceleration, deltaTime))
 
     -- Decompose updated velocity
-    local forwardSpeed = VecDot(currentVelocity, forward)
+    local forwardSpeed = VecDot(velocity, forward)
     local forwardVelocity = VecScale(forward, forwardSpeed)
-    local lateralVelocity = VecSub(currentVelocity, forwardVelocity)
+    local lateralVelocity = VecSub(velocity, forwardVelocity)
 
     -- Apply drag
     forwardVelocity = VecScale(forwardVelocity, math.exp(-FORWARD_DRAG * deltaTime))
     lateralVelocity = VecScale(lateralVelocity, math.exp(-LATERAL_DRAG * deltaTime))
 
     -- Recombine
-    currentVelocity = VecAdd(forwardVelocity, lateralVelocity)
+    velocity = VecAdd(forwardVelocity, lateralVelocity)
 
     -- Integrate
-    guidedmissile.pos = VecAdd(guidedmissile.pos, VecScale(currentVelocity, deltaTime))
+    guidedmissile.pos = VecAdd(guidedmissile.pos, VecScale(velocity, deltaTime))
 
 
 
