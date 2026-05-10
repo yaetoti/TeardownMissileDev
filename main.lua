@@ -4,7 +4,8 @@ local EXPLOSION_STRENGTH = 4
 local BASE_SPEED = 30
 local BASE_SPEED_MODIFIER = 1
 local SHIFT_SPEED_MODIFIER = 3
-local MAX_ACCELERATION = 50
+local MAX_ACCELERATION = 30
+local LATERAL_DRAG = 3
 
 local ROTATION_SPEED_MODIFIER = 500
 local ROTATION_MAX_ACCELERATION = 500
@@ -231,12 +232,19 @@ function tick(deltaTime)
     -- Velocity
     local targetSpeed = BASE_SPEED * missileSpeedModifier
     local forward = TransformToParentVec(guidedmissile, Vec(0, 0, -1))
+
+    local forwardSpeed = VecDot(currentVelocity, forward)
+    local forwardVelocity = VecScale(forward, forwardSpeed)
+    local lateralVelocity = VecSub(currentVelocity, forwardVelocity)
+    currentVelocity = VecSub(currentVelocity, VecScale(lateralVelocity, LATERAL_DRAG * deltaTime))
+
     targetVelocity = VecScale(forward, targetSpeed)
     local deltaVelocity = VecSub(targetVelocity, currentVelocity)
     local accelerationStep = MAX_ACCELERATION * deltaTime
     if VecLength(deltaVelocity) > accelerationStep then
       deltaVelocity = VecScale(VecNormalize(deltaVelocity), accelerationStep)
     end
+
 
     currentVelocity = VecAdd(currentVelocity, deltaVelocity)
 
@@ -305,6 +313,12 @@ function tick(deltaTime)
     if not guidedmissile.rot then guidedmissile.rot = guidedct.rot end
 
     -- Velocity
+    local forward = TransformToParentVec(guidedmissile, Vec(0, 0, -1))
+    local forwardSpeed = VecDot(currentVelocity, forward)
+    local forwardVelocity = VecScale(forward, forwardSpeed)
+    local lateralVelocity = VecSub(currentVelocity, forwardVelocity)
+    currentVelocity = VecSub(currentVelocity, VecScale(lateralVelocity, LATERAL_DRAG * deltaTime))
+
     local deltaVelocity = VecSub(targetVelocity, currentVelocity)
     local accelerationStep = MAX_ACCELERATION * deltaTime
     if VecLength(deltaVelocity) > accelerationStep then
