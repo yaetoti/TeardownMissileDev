@@ -12,8 +12,8 @@ local ROLL_SPEED_MODIFIER = 30
 local ROLL_MAX_ACCELERATION = 30
 local BASE_ROTATION_RESPONSE_TIME = 0.75
 
-local targetVelocity = 0
-local currentVelocity = 0
+local targetVelocity = Vec(0, 0, 0)
+local currentVelocity = Vec(0, 0, 0)
 local currentRotationX = 0
 local currentRotationY = 0
 local currentRotationZ = 0
@@ -112,8 +112,8 @@ function GuidedExplode()
   guidedprimed = false
   isMissileFlying = false
   isMissileDetached = false
-  targetVelocity = 0
-  currentVelocity = 0
+  targetVelocity = Vec(0, 0, 0)
+  currentVelocity = Vec(0, 0, 0)
   currentRotationX = 0
   currentRotationY = 0
   currentRotationZ = 0
@@ -226,20 +226,27 @@ function tick(deltaTime)
 
     if shiftDown then
       missileSpeedModifier = SHIFT_SPEED_MODIFIER
-      --rotationSpeedModifier = SHIFT_ROTATION_SPEED_MODIFIER
     end
 
     -- Velocity
-    targetVelocity = BASE_SPEED * missileSpeedModifier
+    local targetSpeed = BASE_SPEED * missileSpeedModifier
+    local forward = TransformToParentVec(guidedmissile, Vec(0, 0, -1))
+    targetVelocity = VecScale(forward, targetSpeed)
+    local deltaVelocity = VecSub(targetVelocity, currentVelocity)
     local accelerationStep = MAX_ACCELERATION * deltaTime
-    local deltaVelocity = clamp(targetVelocity - currentVelocity, -accelerationStep, accelerationStep)
-    currentVelocity = currentVelocity + deltaVelocity
+    if VecLength(deltaVelocity) > accelerationStep then
+      deltaVelocity = VecScale(VecNormalize(deltaVelocity), accelerationStep)
+    end
+
+    currentVelocity = VecAdd(currentVelocity, deltaVelocity)
 
     -- Apply position
-    guidedmissile.pos = TransformToParentPoint(guidedmissile, Vec(0, 0, -currentVelocity * deltaTime))
+    guidedmissile.pos = VecAdd(guidedmissile.pos, VecScale(currentVelocity, deltaTime))
 
     -- Rotation Pitch-Yaw
-    local speedTurnModifier = 1 / (math.max(currentVelocity, 0.01) / BASE_SPEED)
+    local currentSpeed = VecLength(currentVelocity)
+
+    local speedTurnModifier = 1 / (math.max(currentSpeed, 0.01) / BASE_SPEED)
     local alpha = expSmoothingAlpha(BASE_ROTATION_RESPONSE_TIME * speedTurnModifier, deltaTime)
     local targetRotationX = lerp(currentRotationX, xMouse * rotationSpeedModifier * speedTurnModifier, alpha)
     local targetRotationY = lerp(currentRotationY, yMouse * rotationSpeedModifier * speedTurnModifier, alpha)
@@ -298,12 +305,16 @@ function tick(deltaTime)
     if not guidedmissile.rot then guidedmissile.rot = guidedct.rot end
 
     -- Velocity
+    local deltaVelocity = VecSub(targetVelocity, currentVelocity)
     local accelerationStep = MAX_ACCELERATION * deltaTime
-    local deltaVelocity = clamp(targetVelocity - currentVelocity, -accelerationStep, accelerationStep)
-    currentVelocity = currentVelocity + deltaVelocity
+    if VecLength(deltaVelocity) > accelerationStep then
+      deltaVelocity = VecScale(VecNormalize(deltaVelocity), accelerationStep)
+    end
+
+    currentVelocity = VecAdd(currentVelocity, deltaVelocity)
 
     -- Apply position
-    guidedmissile.pos = TransformToParentPoint(guidedmissile, Vec(0, 0, -currentVelocity * deltaTime))
+    guidedmissile.pos = VecAdd(guidedmissile.pos, VecScale(currentVelocity, deltaTime))
 
     -- Effects
     guidedmissiletip = TransformToParentPoint(guidedmissile, Vec(0, 0, -1.1))
