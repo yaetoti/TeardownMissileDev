@@ -2,12 +2,12 @@
 local EXPLOSION_STRENGTH = 4
 
 local THRUST = 80
-local BASE_SPEED = 30
+local BASE_SPEED = 50
 local BASE_SPEED_MODIFIER = 1
 local SHIFT_SPEED_MODIFIER = 3
 
-local PITCH_TORQUE = 600
-local YAW_TORQUE = 600
+local PITCH_TORQUE = 500
+local YAW_TORQUE = 300
 local ROLL_TORQUE = 320
 local MAX_ANGULAR_SPEED = 180
 
@@ -15,17 +15,16 @@ local FORWARD_DRAG = 0.8
 local LATERAL_DRAG = 14
 local ANGULAR_DRAG = 0.8
 
+local PENETRATION = 1.00
 local FUSE_TIMER = 0.25
 
 local targetSpeed = 0
 local velocity = Vec(0, 0, 0)
 local angularVelocity = Vec(0, 0, 0)
 
+local penetration = PENETRATION
 local fuseTimer = FUSE_TIMER
 local armed = false
-
-
-local savedCameraRotation
 
 
 local function sign(n)
@@ -119,72 +118,121 @@ function GuidedExplode()
   guidedprimed = false
   isMissileFlying = false
   isMissileDetached = false
+
   targetSpeed = 0
   velocity = Vec(0, 0, 0)
   angularVelocity = Vec(0, 0, 0)
   armed = false
   fuseTimer = FUSE_TIMER
+  penetration = PENETRATION
 
   Delete(rocketProjectile[1])
 end
 
-function RestoreCameraRotation()
-  local t = GetPlayerTransform()
-  local v = GetPlayerVelocity()
-  t.rot = savedCameraRotation
-  SetPlayerTransformWithPitch(t)
-  SetPlayerVelocity(v)
-end
-
 function GuidedCheckHit()
-  local fwdpos = TransformToParentPoint(guidedmissile, Vec(0, 0, -6.5))
-  local bckpos = TransformToParentPoint(guidedmissile, Vec(0, 0, 0))
-  local dir = VecNormalize(VecSub(fwdpos, guidedmissiletip))
-  QueryRejectBody(rocketProjectile[1])
+  -- todo replace with direction and scale
+  local origin = guidedmissiletip
+  local forwardPos = TransformToParentPoint(guidedmissile, Vec(0, 0, -6.5))
+  local forwardDir = VecSub(forwardPos, origin)
 
-  local hit, dist, normal, shape = QueryRaycast(guidedmissiletip, dir, VecLength(VecSub(fwdpos, guidedmissiletip)), 0.1)
-  local material = GetShapeMaterialAtPosition(shape, fwdpos)
+  local dir = VecNormalize(forwardDir)
+  local dirLength = VecLength(forwardDir)
+
+  QueryRejectBody(rocketProjectile[1])
+  local hit, dist, normal, shape = QueryRaycast(origin, dir, dirLength, 0.1)
+  local hasUnbreakableTag = HasTag(shape, "unbreakable")
 
   if hit then
-    MakeHole(fwdpos, 1, 1, 1)
+    local hitPos = VecAdd(origin, VecScale(dir, dist + 0.001))
+    local material = GetShapeMaterialAtPosition(shape, hitPos)
+
+    local penetrationTable = {
+      ["foliage"] = 0.01,
+      ["glass"] = 0.1,
+      ["plaster"] = 0.1,
+      ["dirt"] = 0.1,
+      ["wood"] = 0.2,
+      ["brick"] = 0.7,
+      ["masonry"] = 0.7,
+      ["metal"] = 0.8,
+      ["heavymetal"] = 1.0,
+      ["rock"] = 1.0,
+      ["unphysical"] = 1.0,
+    }
+    local penetrationLoss = penetrationTable[material] or 0
+
+    MakeHole(hitPos, 1.2, 1, 0.7)
     armed = true
+    penetration = penetration - penetrationLoss
+
+    if hasUnbreakableTag then
+      fuseTimer = 0.0
+    end
+  end
+end
+
+function HitDebug(deltaTime)
+  local playerTransform = GetPlayerEyeTransform()
+  local playerLookDir = TransformToParentVec(playerTransform, Vec(0, 0, -1))
+  local hit, dist, normal, shape = QueryRaycast(playerTransform.pos, playerLookDir, 100)
+
+  if hit then
+    local hitPos = VecAdd(playerTransform.pos, VecScale(playerLookDir, dist + 0.001))
+    local mat = GetShapeMaterialAtPosition(shape, hitPos)
+    local hasUnbreakableTag = HasTag(shape, "unbreakable")
+
+    local penetrationTable = {
+      ["foliage"] = 0.01,
+      ["glass"] = 0.1,
+      ["plaster"] = 0.1,
+      ["dirt"] = 0.1,
+      ["wood"] = 0.1,
+      ["masonry"] = 0.5,
+      ["metal"] = 0.8,
+      ["heavymetal"] = 1.0,
+      ["rock"] = 1.0,
+      ["unphysical"] = 1.0,
+    }
+    local penetrationLoss = penetrationTable[mat] or 0
+
+    DebugPrint("playerTransform = "..TransformStr(playerTransform))
+    DebugPrint("lookDir = "..VecStr(playerLookDir))
+
+    DebugPrint("pos = "..VecStr(hitPos))
+    DebugPrint("material = "..tostring(mat))
+    DebugPrint("hasUnbreakableTag = "..tostring(hasUnbreakableTag))
+    DebugPrint("penetrationLoss = "..tostring(penetrationLoss))
   end
 end
 
 function tick(deltaTime)
-  if GetString("game.player.tool") == "guided" and GetPlayerVehicle() == 0 then
+  -- TODO debug
+  --HitDebug(deltaTime)
+
+  if GetPlayerCanUseTool() and GetString("game.player.tool") == "guided" then
+    -- Launch missile
     if InputPressed("lmb") then
-      -- Launch missile
       if not isMissileFlying and not isMissileDetached then
         isMissileFlying = true
         PlaySound(guidedfireSound)
         rocketProjectile = Spawn("MOD/vox/rocket.xml", rocketTrans)
-
-        -- Save camera rotation
-        local t = GetPlayerTransformWithPitch()
-        savedCameraRotation = t.rot
       end
 
       if guidedprimed and isMissileFlying or isMissileDetached then
-        if not isMissileDetached then
-          RestoreCameraRotation()
-        end
-
         GuidedExplode()
       end
     end
 
+    -- Detach
     if InputPressed("rmb") then
-      -- Detach
       if isMissileFlying and not isMissileDetached then
         -- TODO bad design my modder
         isMissileFlying = false
         isMissileDetached = true
-
-        RestoreCameraRotation()
       end
     end
 
+    -- TODO integrate
     if InputPressed("R") then
       piercing = not piercing
       SetString("hud.notification", "Piercing rocket "..(piercing and "on" or "off"))
@@ -208,12 +256,20 @@ function tick(deltaTime)
 
   if isMissileFlying or isMissileDetached then
     if armed then
-      fuseTimer = fuseTimer - deltaTime
-      if fuseTimer <= 0 then
-        if not isMissileDetached then
-          RestoreCameraRotation()
-        end
+      local shouldExplode = false
 
+      if not piercing then
+        fuseTimer = fuseTimer - deltaTime
+        if fuseTimer <= 0 then
+          shouldExplode = true
+        end
+      end
+
+      if penetration <= 0 then
+        shouldExplode = true
+      end
+
+      if shouldExplode then
         GuidedExplode()
       end
     end
@@ -221,16 +277,18 @@ function tick(deltaTime)
 
   -- Movement update
   if isMissileFlying then
+    DisablePlayerInput()
+
     -- Input
     local mouseX, mouseY = InputValue("camerax"), InputValue("cameray")
     local missileSpeedModifier = BASE_SPEED_MODIFIER
 
     local rollInput = 0
-    if InputDown("q") then
+    if InputDown("a") then
       rollInput = rollInput - 1
     end
 
-    if InputDown("e") then
+    if InputDown("d") then
       rollInput = rollInput + 1
     end
 
@@ -252,7 +310,8 @@ function tick(deltaTime)
     local speed = VecDot(velocity, forward)
     local velDir = VecNormalize(velocity)
     local alignment = VecDot(velDir, forward)
-    alignment = clamp(alignment, 0, 1)
+    --local alignment = 1
+    alignment = clamp(alignment, 0.001, 1)
     speedFactor = (1 - speed/targetSpeed) * alignment
 
     local acceleration = VecScale(forward, THRUST * speedFactor)
@@ -353,7 +412,7 @@ function tick(deltaTime)
     local speed = VecDot(velocity, forward)
     local velDir = VecNormalize(velocity)
     local alignment = VecDot(velDir, forward)
-    alignment = clamp(alignment, 0, 1)
+    alignment = clamp(alignment, 0.001, 1)
     speedFactor = (1 - speed/targetSpeed) * alignment
 
     local acceleration = VecScale(forward, THRUST * speedFactor)

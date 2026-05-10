@@ -191,6 +191,11 @@ function TransformToLocalPoint(t, p) end
 ---@return Transform Current player transform
 function GetPlayerTransform(playerId) end
 
+---The player eye transform is the same as what you get from GetCameraTransform when playing in first-person, but if you have set a camera transform manually with SetCameraTransform or playing in third-person, you can retrieve the player eye transform with this function
+---@param playerId number Player ID
+---@return Transform
+function GetPlayerEyeTransform(playerId) end
+
 ---Instantly teleport the player to desired transform, excluding pitch. If you want to include pitch, use SetPlayerTransformWithPitch instead. Player velocity will be reset to zero.
 ---@param transform Transform
 ---@param playerId number
@@ -212,3 +217,12 @@ function GetPlayerVelocity(playerId) end
 ---@param velocity Vec Player velocity in world space as vector
 ---@param playerId number Player ID. On server, zero means server (host) player.
 function SetPlayerVelocity(velocity, playerId) end
+
+---Disable input for a player. Should be called from tick.
+---@param playerId number Player to disable
+function DisablePlayerInput(player) end
+
+---Will be false if player is in vehicle, interacting with a screen, has pause menu open, is dead or uses interactive UI.
+---@param player number Player ID. On client, zero means client player. On server, zero means server (host) player.
+---@return boolean
+function GetPlayerCanUseTool(player) end
