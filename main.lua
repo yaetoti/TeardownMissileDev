@@ -1,16 +1,22 @@
 -- MEINE
-local EXPLOSION_STRENGTH = 7
+local EXPLOSION_STRENGTH = 4
 
 local BASE_SPEED = 30
+local BASE_SPEED_MODIFIER = 1
 local SHIFT_SPEED_MODIFIER = 3
+local MAX_ACCELERATION = 50
 
 local ROTATION_SPEED_MODIFIER = 500
-local SHIFT_ROTATION_SPEED_MODIFIER = 100
-local ROTATION_MAX_ACCELERATION = 600
-local ROTATION_RESPONSE_TIME = 0.45
+local ROTATION_MAX_ACCELERATION = 500
+local ROLL_SPEED_MODIFIER = 30
+local ROLL_MAX_ACCELERATION = 30
+local BASE_ROTATION_RESPONSE_TIME = 0.75
 
-local lastMouseX = 0
-local lastMouseY = 0
+local targetVelocity = 0
+local currentVelocity = 0
+local currentRotationX = 0
+local currentRotationY = 0
+local currentRotationZ = 0
 
 local savedCameraRotation
 
@@ -33,6 +39,14 @@ local function clamp(n, min, max)
   end
 
   return n
+end
+
+local function VecClamp(v, min, max)
+  v = VecCopy(v)
+  v.x = clamp(v.x, min, max)
+  v.y = clamp(v.y, min, max)
+  v.z = clamp(v.z, min, max)
+  return v
 end
 
 local function clamp_abs(n, min, max)
@@ -69,7 +83,6 @@ function init()
   guidedfireSound = LoadSound("tools/launcher0.ogg")
   guidedboosterSound = LoadLoop("MOD/snd/rocket_loop.ogg")
   guidedmissileSprite = LoadSprite("MOD/img/missile.png")
-  missileSpeed = 30
   guidedmissile = {}
   guidedcamdist = 2
 
@@ -99,8 +112,11 @@ function GuidedExplode()
   guidedprimed = false
   isMissileFlying = false
   isMissileDetached = false
-  lastMouseX = 0
-  lastMouseY = 0
+  targetVelocity = 0
+  currentVelocity = 0
+  currentRotationX = 0
+  currentRotationY = 0
+  currentRotationZ = 0
   Delete(rocketProjectile[1])
 end
 
@@ -192,44 +208,61 @@ function tick(deltaTime)
   if isMissileFlying then
     -- Input
     local xMouse, yMouse, shiftDown = InputValue("camerax"), InputValue("cameray"), InputDown("shift")
+    local missileSpeedModifier = BASE_SPEED_MODIFIER
     local rotationSpeedModifier = ROTATION_SPEED_MODIFIER
+
+    local deltaZ = 0
+    if InputDown("q") then
+      deltaZ = deltaZ - 1
+    end
+
+    if InputDown("e") then
+      deltaZ = deltaZ + 1
+    end
 
     local guidedct = GetCameraTransform()
     if not guidedmissile.pos then guidedmissile.pos = guidedct.pos end
     if not guidedmissile.rot then guidedmissile.rot = guidedct.rot end
-    if shiftDown then
-      missileSpeed = BASE_SPEED * SHIFT_SPEED_MODIFIER
 
-      rotationSpeedModifier = SHIFT_ROTATION_SPEED_MODIFIER
-    else
-      missileSpeed = BASE_SPEED
+    if shiftDown then
+      missileSpeedModifier = SHIFT_SPEED_MODIFIER
+      --rotationSpeedModifier = SHIFT_ROTATION_SPEED_MODIFIER
     end
 
-    -- TODO acceleration model
-    local acceleration = 0.0
-    local velocity = missileSpeed * deltaTime
+    -- Velocity
+    targetVelocity = BASE_SPEED * missileSpeedModifier
+    local accelerationStep = MAX_ACCELERATION * deltaTime
+    local deltaVelocity = clamp(targetVelocity - currentVelocity, -accelerationStep, accelerationStep)
+    currentVelocity = currentVelocity + deltaVelocity
 
-    -- Position
-    local forwardPos = TransformToParentPoint(guidedmissile, Vec(0, 0, -5))
-    guidedmissile.pos = TransformToParentPoint(guidedmissile, Vec(0, 0, -velocity))
+    -- Apply position
+    guidedmissile.pos = TransformToParentPoint(guidedmissile, Vec(0, 0, -currentVelocity * deltaTime))
 
-    -- Rotation
-    local alpha = expSmoothingAlpha(ROTATION_RESPONSE_TIME, deltaTime)
-    local xRotation = lerp(lastMouseX, xMouse * rotationSpeedModifier, alpha)
-    local yRotation = lerp(lastMouseY, yMouse * rotationSpeedModifier, alpha)
+    -- Rotation Pitch-Yaw
+    local speedTurnModifier = 1 / (math.max(currentVelocity, 0.01) / BASE_SPEED)
+    local alpha = expSmoothingAlpha(BASE_ROTATION_RESPONSE_TIME * speedTurnModifier, deltaTime)
+    local targetRotationX = lerp(currentRotationX, xMouse * rotationSpeedModifier * speedTurnModifier, alpha)
+    local targetRotationY = lerp(currentRotationY, yMouse * rotationSpeedModifier * speedTurnModifier, alpha)
 
     local rotationAccelerationStep = ROTATION_MAX_ACCELERATION * deltaTime
-    local deltaX = clamp(xRotation - lastMouseX, -rotationAccelerationStep, rotationAccelerationStep)
-    local deltaY = clamp(yRotation - lastMouseY, -rotationAccelerationStep, rotationAccelerationStep)
+    local deltaX = clamp(targetRotationX - currentRotationX, -rotationAccelerationStep, rotationAccelerationStep)
+    local deltaY = clamp(targetRotationY - currentRotationY, -rotationAccelerationStep, rotationAccelerationStep)
 
-    xRotation = lastMouseX + deltaX
-    yRotation = lastMouseY + deltaY
+    currentRotationX = currentRotationX + deltaX
+    currentRotationY = currentRotationY + deltaY
 
-    lastMouseX = xRotation
-    lastMouseY = yRotation
+    -- Rotation Roll
+    local targetRotationZ = deltaZ * ROLL_SPEED_MODIFIER
+    local rollAccelerationStep = ROLL_MAX_ACCELERATION * deltaTime
+    local deltaRoll = clamp(targetRotationZ - currentRotationZ, -rollAccelerationStep, rollAccelerationStep)
 
-    guidedmissile.rot = QuatLookAt(guidedmissile.pos, forwardPos)
-    guidedmissile.rot = QuatRotateQuat(guidedmissile.rot, QuatEuler(-yRotation * deltaTime, -xRotation * deltaTime, 0))
+    currentRotationZ = currentRotationZ + deltaRoll
+
+    -- Apply rotation
+    --guidedmissile.rot = QuatLookAt(guidedmissile.pos, forwardPos)
+    guidedmissile.rot = QuatRotateQuat(guidedmissile.rot, QuatEuler(-targetRotationY * deltaTime, -targetRotationX * deltaTime, -currentRotationZ * deltaTime))
+
+
 
     -- Camera and effects
     guidedmissiletip = TransformToParentPoint(guidedmissile, Vec(0, 0, -1.1))
@@ -264,11 +297,18 @@ function tick(deltaTime)
     if not guidedmissile.pos then guidedmissile.pos = guidedct.pos end
     if not guidedmissile.rot then guidedmissile.rot = guidedct.rot end
 
-    guidedmissile.pos = TransformToParentPoint(guidedmissile, Vec(0, 0, -(missileSpeed /100)))
+    -- Velocity
+    local accelerationStep = MAX_ACCELERATION * deltaTime
+    local deltaVelocity = clamp(targetVelocity - currentVelocity, -accelerationStep, accelerationStep)
+    currentVelocity = currentVelocity + deltaVelocity
+
+    -- Apply position
+    guidedmissile.pos = TransformToParentPoint(guidedmissile, Vec(0, 0, -currentVelocity * deltaTime))
+
+    -- Effects
     guidedmissiletip = TransformToParentPoint(guidedmissile, Vec(0, 0, -1.1))
     guidedsmokepos = TransformToParentPoint(guidedmissile, Vec(0, -0.1, -1))
 
-    local size = 0.5
     local rot = QuatLookAt(guidedmissile.pos, guidedmissiletip)
     rocketWorldtransform = Transform(guidedmissile.pos, rot)
 
