@@ -1,0 +1,6 @@
+<prefab version="0.9.3">
+	<group id_="1259154432" open_="true"  name="instance=MOD/vox/rocket.xml" pos="0.0 0.2 1.2" rot="0.0 0.0 0.0">
+		<vox id_="1445877888" tags="hard" scale="0.25" prop="true" collide="true" pos="0.0 -0.2 0.2" file="MOD/vox/rocket.vox"/>
+	</group>
+</prefab>
+
