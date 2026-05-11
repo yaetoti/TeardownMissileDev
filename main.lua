@@ -26,6 +26,11 @@ local penetration = PENETRATION
 local fuseTimer = FUSE_TIMER
 local armed = false
 
+-- TODO Debug
+local targetCameraPos = Vec(0, 0, -1)
+local targetCameraMode = false
+
+
 
 local function sign(n)
   if n >= 0 then
@@ -84,12 +89,12 @@ function init()
   SetString("game.tool.guided.ammo.display","")
   SetFloat("game.tool.guided.ammo", 101)
 
-  guidedexplosionSound = LoadSound("MOD/snd/explosion.ogg")
-  guidedflyingSound = LoadLoop("MOD/snd/rocket_loop.ogg")
+  guidedexplosionSound = LoadSound("MOD/snd/explosion.ogg", 200)
+  guidedflyingSound = LoadLoop("MOD/snd/rocket_loop.ogg", 500)
   guidedfireSound = LoadSound("tools/launcher0.ogg")
-  guidedboosterSound = LoadLoop("MOD/snd/rocket_loop.ogg")
+  guidedboosterSound = LoadLoop("MOD/snd/rocket_loop.ogg", 500)
   guidedmissileSprite = LoadSprite("MOD/img/missile.png")
-  guidedmissile = {}
+  missileTransform = {}
   guidedcamdist = 2
 
   isMissileFlying = false
@@ -99,8 +104,8 @@ function init()
 end
 
 function GuidedExplode()
-  local explode_point = TransformToParentPoint(guidedmissile, Vec(0, 0, -6.5))
-  SpawnFire(guidedmissile, Vec(0, 0, -6.5))
+  local explode_point = TransformToParentPoint(missileTransform, Vec(0, 0, -6.5))
+  SpawnFire(missileTransform, Vec(0, 0, -6.5))
   ParticleReset()
   ParticleType("fire")
   ParticleColor(0.7, 0.6, 0.5)
@@ -109,12 +114,12 @@ function GuidedExplode()
   ParticleType("smoke")
   ParticleColor(0.7, 0.6, 0.5)
   SpawnParticle(explode_point, Vec(1, 1, 1), 10.0)
-  PlaySound(guidedexplosionSound, guidedmissile.pos, 8, false)
+  PlaySound(guidedexplosionSound, missileTransform.pos, 8, false)
   Explosion(explode_point, EXPLOSION_STRENGTH)
   Explosion(explode_point, EXPLOSION_STRENGTH)
 
-  guidedmissile.pos = nil
-  guidedmissile.rot = nil
+  missileTransform.pos = nil
+  missileTransform.rot = nil
   guidedprimed = false
   isMissileFlying = false
   isMissileDetached = false
@@ -132,7 +137,7 @@ end
 function GuidedCheckHit()
   -- todo replace with direction and scale
   local origin = guidedmissiletip
-  local forwardPos = TransformToParentPoint(guidedmissile, Vec(0, 0, -6.5))
+  local forwardPos = TransformToParentPoint(missileTransform, Vec(0, 0, -6.5))
   local forwardDir = VecSub(forwardPos, origin)
 
   local dir = VecNormalize(forwardDir)
@@ -205,17 +210,69 @@ function HitDebug(deltaTime)
   end
 end
 
+function CaptureTargetCamera(deltaTime)
+  local cameraTransform = GetCameraTransform()
+  local cameraLookDir = TransformToParentVec(cameraTransform, Vec(0, 0, -1))
+  local hit, dist, normal, shape = QueryRaycast(cameraTransform.pos, cameraLookDir, 10000)
+
+  if hit then
+    local hitPos = VecAdd(cameraTransform.pos, VecScale(cameraLookDir, dist))
+    targetCameraPos = hitPos
+  end
+end
+
 function tick(deltaTime)
   -- TODO debug
   --HitDebug(deltaTime)
 
   if GetPlayerCanUseTool() and GetString("game.player.tool") == "guided" then
+    -- todo debug
+    if InputPressed("q") then
+      CaptureTargetCamera(deltaTime)
+    end
+
+    -- todo debug
+    if InputPressed("c") then
+      targetCameraMode = not targetCameraMode
+    end
+
     -- Launch missile
     if InputPressed("lmb") then
       if not isMissileFlying and not isMissileDetached then
         isMissileFlying = true
         PlaySound(guidedfireSound)
-        rocketProjectile = Spawn("MOD/vox/rocket.xml", rocketTrans)
+
+        -- Position selection
+        local margin = 500
+        local aabbMin, aabbMax = GetBoundaryBounds()
+        aabbMin = VecSub(aabbMin, Vec(margin, 0, margin))
+        aabbMax = VecAdd(aabbMax, Vec(margin, 0, margin))
+
+        local y = 70
+
+        local isClampedX = GetRandomBool()
+
+        local xBool = GetRandomInt(0, 1)
+        local x = xBool * aabbMin[1] + (1 - xBool) * aabbMax[1]
+
+        local zBool = GetRandomInt(0, 1)
+        local z = zBool * aabbMin[3] + (1 - zBool) * aabbMax[3]
+
+        if isClampedX then
+          z = GetRandomFloat(aabbMin[3], aabbMax[3])
+        else
+          x = GetRandomFloat(aabbMin[1], aabbMax[1])
+        end
+
+        local pos = Vec(x, y, z)
+        local rot = QuatLookAt(pos, Vec(0, y, 0))
+
+
+
+        local missileSpawnTransform = Transform(pos, rot)
+        missileTransform.pos = pos
+        missileTransform.rot = rot
+        rocketProjectile = Spawn("MOD/vox/rocket.xml", missileSpawnTransform)
       end
 
       if guidedprimed and isMissileFlying or isMissileDetached then
@@ -297,13 +354,13 @@ function tick(deltaTime)
     end
 
     local guidedct = GetCameraTransform()
-    if not guidedmissile.pos then guidedmissile.pos = guidedct.pos end
-    if not guidedmissile.rot then guidedmissile.rot = guidedct.rot end
+    if not missileTransform.pos then missileTransform.pos = guidedct.pos end
+    if not missileTransform.rot then missileTransform.rot = guidedct.rot end
 
     -- Velocity
 
     -- Forward direction
-    local forward = TransformToParentVec(guidedmissile, Vec(0, 0, -1))
+    local forward = TransformToParentVec(missileTransform, Vec(0, 0, -1))
 
     -- Apply thrust
     targetSpeed = BASE_SPEED * missileSpeedModifier
@@ -330,7 +387,7 @@ function tick(deltaTime)
     velocity = VecAdd(forwardVelocity, lateralVelocity)
 
     -- Integrate
-    guidedmissile.pos = VecAdd(guidedmissile.pos, VecScale(velocity, deltaTime))
+    missileTransform.pos = VecAdd(missileTransform.pos, VecScale(velocity, deltaTime))
 
 
 
@@ -366,47 +423,55 @@ function tick(deltaTime)
         angularVelocity[3] * deltaTime
     )
 
-    guidedmissile.rot = QuatRotateQuat(guidedmissile.rot, deltaRot)
+    missileTransform.rot = QuatRotateQuat(missileTransform.rot, deltaRot)
 
 
     -- Camera and effects
-    guidedmissiletip = TransformToParentPoint(guidedmissile, Vec(0, 0, -1.1))
-    guidedsmokepos = TransformToParentPoint(guidedmissile, Vec(0, 0, 0.9))
+    guidedmissiletip = TransformToParentPoint(missileTransform, Vec(0, 0, -1.1))
+    guidedsmokepos = TransformToParentPoint(missileTransform, Vec(0, 0, 0.7))
 
     guidedflycam = {}
-    --guidedflycam.pos = TransformToParentPoint(guidedmissile, Vec(0, 0, 0))
-    --guidedflycam.pos = TransformToParentPoint(guidedmissile, Vec(0, guidedcamdist/3, guidedcamdist))
-    guidedflycam.pos = TransformToParentPoint(guidedmissile, Vec(0, guidedcamdist/3, 0))
-    guidedflycam.rot = QuatCopy(guidedmissile.rot)
+    guidedflycam.pos = TransformToParentPoint(missileTransform, Vec(0, guidedcamdist/3, 0))
+    guidedflycam.rot = QuatCopy(missileTransform.rot)
+
+    -- TODO debug
+    if targetCameraMode then
+      guidedflycam = Transform(targetCameraPos, QuatLookAt(targetCameraPos, missileTransform.pos))
+    end
 
     SetCameraTransform(guidedflycam)
 
     local width = 0.5
     local length = 1.5
-    local spritepos = TransformToParentPoint(guidedmissile, Vec(0, 0, -0.75))
+    local spritepos = TransformToParentPoint(missileTransform, Vec(0, 0, -0.75))
     --local rot = QuatLookAt(guidedmissile.pos, guidedmissiletip)
-    local rot = guidedmissile.rot
+    local rot = missileTransform.rot
     rocketWorldtransform = Transform(spritepos, rot)
 
     SetBodyTransform(rocketProjectile[1], rocketWorldtransform)
 
-    PlayLoop(guidedflyingSound, guidedmissile.pos, 1, false)
+    PlayLoop(guidedflyingSound, missileTransform.pos, 1, false)
     SpawnParticle("fire", guidedsmokepos, Vec(0, 0, 0), 0.75, 0.25)
     SpawnParticle("smoke", guidedsmokepos, Vec(0, 0, 0), 1, 2)
     guidedprimed = true
     GuidedCheckHit()
   end
 
+  -- TODO Debug
+  if targetCameraMode then
+    SetCameraTransform(guidedflycam)
+  end
+
   if isMissileDetached then
     local guidedct = GetCameraTransform()
-    if not guidedmissile.pos then guidedmissile.pos = guidedct.pos end
-    if not guidedmissile.rot then guidedmissile.rot = guidedct.rot end
+    if not missileTransform.pos then missileTransform.pos = guidedct.pos end
+    if not missileTransform.rot then missileTransform.rot = guidedct.rot end
 
 
 
     -- Velocity
     -- Forward direction
-    local forward = TransformToParentVec(guidedmissile, Vec(0, 0, -1))
+    local forward = TransformToParentVec(missileTransform, Vec(0, 0, -1))
 
     -- Apply thrust
     local speed = VecDot(velocity, forward)
@@ -431,23 +496,289 @@ function tick(deltaTime)
     velocity = VecAdd(forwardVelocity, lateralVelocity)
 
     -- Integrate
-    guidedmissile.pos = VecAdd(guidedmissile.pos, VecScale(velocity, deltaTime))
+    missileTransform.pos = VecAdd(missileTransform.pos, VecScale(velocity, deltaTime))
 
 
 
 
     -- Effects
-    guidedmissiletip = TransformToParentPoint(guidedmissile, Vec(0, 0, -1.1))
-    guidedsmokepos = TransformToParentPoint(guidedmissile, Vec(0, -0.1, -1))
+    guidedmissiletip = TransformToParentPoint(missileTransform, Vec(0, 0, -1.1))
+    guidedsmokepos = TransformToParentPoint(missileTransform, Vec(0, -0.1, -1))
 
-    local rot = QuatLookAt(guidedmissile.pos, guidedmissiletip)
-    rocketWorldtransform = Transform(guidedmissile.pos, rot)
+    local rot = QuatLookAt(missileTransform.pos, guidedmissiletip)
+    rocketWorldtransform = Transform(missileTransform.pos, rot)
 
     SetBodyTransform(rocketProjectile[1], rocketWorldtransform)
-    PlayLoop(guidedflyingSound, guidedmissile.pos, 4, false)
+    PlayLoop(guidedflyingSound, missileTransform.pos, 1, false)
     SpawnParticle("fire", guidedsmokepos, Vec(0, 0, 0), 0.75, 0.25)
     SpawnParticle("smoke", guidedsmokepos, Vec(0, 0, 0), 1, 2)
     guidedprimed = true
     GuidedCheckHit()
   end
+end
+
+function draw()
+  if not isMissileFlying then
+    return
+  end
+
+  local targetPos = targetCameraPos
+  local sw = UiWidth()
+  local sh = UiHeight()
+
+  ------------------------------------------------
+  -- TARGET
+  ------------------------------------------------
+
+  local x, y, dist = UiWorldToPixel(targetPos)
+
+  local boxSize = 28
+  local half = boxSize * 0.5
+  local t = 2
+
+  local hudColor = (dist > 0) and Vec(1,1,1) or Vec(0.8,0.6,0.6)
+
+  UiColor(hudColor[1], hudColor[2], hudColor[3])
+
+  -- behind camera fix (keep but optional for HUD feel)
+  if dist <= 0 then
+    x = sw - x
+    y = sh - y
+  end
+
+  ------------------------------------------------
+  -- HUD STYLE TARGET (CORNER BRACKETS)
+  ------------------------------------------------
+
+  local function corner(x0, y0, dx, dy)
+    UiPush()
+    UiTranslate(x0, y0)
+    UiRect(dx, t)
+    UiRect(t, dy)
+    UiPop()
+  end
+
+  -- 4 corners instead of box
+  corner(x - half, y - half, boxSize * 0.4, t)
+  corner(x - half, y - half, t, boxSize * 0.4)
+
+  corner(x + half - boxSize * 0.4, y - half, boxSize * 0.4, t)
+  corner(x + half - t, y - half, t, boxSize * 0.4)
+
+  corner(x - half, y + half - t, boxSize * 0.4, t)
+  corner(x - half, y + half - boxSize * 0.4, t, boxSize * 0.4)
+
+  corner(x + half - boxSize * 0.4, y + half - t, boxSize * 0.4, t)
+  corner(x + half - t, y + half - boxSize * 0.4, t, boxSize * 0.4)
+
+  ------------------------------------------------
+  -- HUD LINES (clean crosshair rails)
+  ------------------------------------------------
+
+  UiPush()
+  UiTranslate(0, y)
+  UiRect(sw, t)
+  UiPop()
+
+  UiPush()
+  UiTranslate(x, 0)
+  UiRect(t, sh)
+  UiPop()
+
+  ------------------------------------------------
+  -- MISSILE ORIENTATION
+  ------------------------------------------------
+
+  local forward = TransformToParentVec(missileTransform, Vec(0,0,-1))
+  local up      = TransformToParentVec(missileTransform, Vec(0,1,0))
+  local right   = TransformToParentVec(missileTransform, Vec(-1,0,0)) -- flipped (OpenGL fix)
+
+  local worldUp = Vec(0,1,0)
+
+  ------------------------------------------------
+  -- SMOOTHED PITCH (HUD FEEL)
+  ------------------------------------------------
+
+  local pitchDot = VecDot(forward, worldUp)
+
+  -- nonlinear response (feels more aircraft-like)
+  local pitch = math.asin(math.max(-1, math.min(1, pitchDot)))
+
+  local horizonY = sh * 0.5 + pitch * (sh * 0.35)
+
+  ------------------------------------------------
+  -- ROLL (stable HUD version)
+  ------------------------------------------------
+
+  local roll = math.atan2(
+      VecDot(right, worldUp),
+      VecDot(up, worldUp)
+  )
+
+  ------------------------------------------------
+  -- HORIZON LINE + LADDER TICKS
+  ------------------------------------------------
+
+  UiPush()
+
+    UiTranslate(sw * 0.5, horizonY)
+    UiRotate(math.deg(roll))
+
+    UiPush()
+    -- main horizon line
+    UiTranslate(-sw, -1)
+
+    UiColor(0,0.6,0,0.4)
+    UiRect(sw * 2, 3)
+
+    UiColor(0,1,0,0.4)
+    UiRect(sw * 2, 2)
+
+    UiPop()
+
+  ------------------------------------------------
+  -- HUD LADDER TICKS (aircraft style)
+  ------------------------------------------------
+
+
+  UiColor(0, 0.7, 0)
+
+    local tickSpacing = 60
+    local tickWidth = 80
+    local tickHeight = 2
+
+    for i = -5, 5 do
+      if i ~= 0 then
+        UiPush()
+        UiTranslate(i * tickSpacing, 0)
+
+        UiRect(tickWidth, tickHeight)
+
+        -- small vertical caps
+        UiTranslate(-tickWidth/2, -10)
+        UiRect(tickHeight, 10)
+        UiTranslate(tickWidth, 0)
+        UiRect(tickHeight, 10)
+        UiPop()
+      end
+    end
+
+  UiPop()
+
+  ------------------------------------------------
+  -- CAMERA DECORATIVE ELEMENTS
+  ------------------------------------------------
+
+  UiColor(1.0, 1.0, 1.0, 0.8)
+
+  -- Corner decorations (camera frame)
+  local cornerSize = UiHeight() * 0.05
+  local cornerThickness = 3
+  local margin = UiHeight() * 0.05
+
+  -- Top-left corner
+  UiPush()
+  UiTranslate(margin, margin)
+  UiRect(cornerSize, cornerThickness)
+  UiRect(cornerThickness, cornerSize)
+  UiPop()
+
+  -- Top-right corner
+  UiPush()
+  UiTranslate(sw - margin - cornerSize, margin)
+  UiRect(cornerSize, cornerThickness)
+  UiTranslate(cornerSize - cornerThickness, 0)
+  UiRect(cornerThickness, cornerSize)
+  UiPop()
+
+  -- Bottom-left corner
+  UiPush()
+  UiTranslate(margin, sh - margin - cornerSize)
+  UiRect(cornerThickness, cornerSize)
+  UiTranslate(0, cornerSize - cornerThickness)
+  UiRect(cornerSize, cornerThickness)
+  UiPop()
+
+  -- Bottom-right corner
+  UiPush()
+  UiTranslate(sw - margin - cornerSize, sh - margin - cornerSize)
+  UiTranslate(cornerSize - cornerThickness, 0)
+  UiRect(cornerThickness, cornerSize)
+  UiTranslate(-cornerSize + cornerThickness, cornerSize - cornerThickness)
+  UiRect(cornerSize, cornerThickness)
+  UiPop()
+
+  -- Edge markers (camera frame sides)
+  local edgeMarkerSize = UiHeight() * 0.03
+  local edgeMarkerThickness = 2
+
+  -- Top edge markers
+  UiPush()
+  UiTranslate(sw * 0.25 - edgeMarkerSize / 2, margin)
+  UiRect(edgeMarkerSize, edgeMarkerThickness)
+  UiPop()
+
+  UiPush()
+  UiTranslate(sw * 0.75 - edgeMarkerSize / 2, margin)
+  UiRect(edgeMarkerSize, edgeMarkerThickness)
+  UiPop()
+
+  -- Bottom edge markers
+  UiPush()
+  UiTranslate(sw * 0.25 - edgeMarkerSize / 2, sh - margin - edgeMarkerThickness)
+  UiRect(edgeMarkerSize, edgeMarkerThickness)
+  UiPop()
+
+  UiPush()
+  UiTranslate(sw * 0.75 - edgeMarkerSize / 2, sh - margin - edgeMarkerThickness)
+  UiRect(edgeMarkerSize, edgeMarkerThickness)
+  UiPop()
+
+  -- Side edge markers
+  UiPush()
+  UiTranslate(margin, sh * 0.25 - edgeMarkerSize / 2)
+  UiRect(edgeMarkerThickness, edgeMarkerSize)
+  UiPop()
+
+  UiPush()
+  UiTranslate(margin, sh * 0.75 - edgeMarkerSize / 2)
+  UiRect(edgeMarkerThickness, edgeMarkerSize)
+  UiPop()
+
+  UiPush()
+  UiTranslate(sw - margin - edgeMarkerThickness, sh * 0.25 - edgeMarkerSize / 2)
+  UiRect(edgeMarkerThickness, edgeMarkerSize)
+  UiPop()
+
+  UiPush()
+  UiTranslate(sw - margin - edgeMarkerThickness, sh * 0.75 - edgeMarkerSize / 2)
+  UiRect(edgeMarkerThickness, edgeMarkerSize)
+  UiPop()
+
+  -- Center reticle (viewfinder)
+  --UiColor(0.8, 0.8, 0.8, 0.4)
+  --local reticleSize = UiHeight() * 0.05
+  --local reticleThickness = 1
+  --local reticleGap = UiHeight() * 0.02
+  --
+  --UiPush()
+  --UiTranslate(sw / 2, sh / 2)
+  --
+  ---- Horizontal line (left)
+  --UiTranslate(-reticleGap - reticleSize, -reticleThickness / 2)
+  --UiRect(reticleSize, reticleThickness)
+  --
+  ---- Horizontal line (right)
+  --UiTranslate(reticleGap * 2 + reticleSize, 0)
+  --UiRect(reticleSize, reticleThickness)
+  --
+  ---- Vertical line (top)
+  --UiTranslate(-reticleGap, -reticleGap - reticleSize + reticleThickness / 2)
+  --UiRect(reticleThickness, reticleSize)
+  --
+  ---- Vertical line (bottom)
+  --UiTranslate(0, reticleGap * 2 + reticleSize)
+  --UiRect(reticleThickness, reticleSize)
+
+  --UiPop()
 end
