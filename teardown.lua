@@ -15,6 +15,13 @@
 
 
 
+---Display message on screen. The last 20 lines are displayed. The function will also recognize tables and convert them to strings automatically.
+---@param message string Message to display
+---@param lineWrapping boolean True if you need to wrap Table lines. Works only with tables (optional)
+function DebugPrint(message, lineWrapping) end
+
+
+
 ---Create new vector and optionally initializes it to the provided values. A Vec is equivalent to a regular lua table with three numbers.
 ---@param x number X value (optional)
 ---@param y number Y value (optional)
@@ -226,3 +233,62 @@ function DisablePlayerInput(player) end
 ---@param player number Player ID. On client, zero means client player. On server, zero means server (host) player.
 ---@return boolean
 function GetPlayerCanUseTool(player) end
+
+
+
+
+---Sets the body transform
+---@param handle number Body handle
+---@param transform Transform – Desired transform
+function SetBodyTransform(handle, transform) end
+
+---The first argument can be either a prefab XML file in your mod folder or a string with XML content. It is also possible to spawn prefabs from other mods, by using the mod id followed by colon, followed by the prefab path. Spawning prefabs from other mods should be used with caution since the referenced mod might not be installed.
+---@param xml string File name or xml string
+---@param transform Transform Spawn transform
+---@param allowStatic boolean __optional__ Allow spawning static shapes and bodies (default false)
+---@param jointExisting boolean __optional__ Allow joints to connect to existing scene geometry (default false)
+---@return table Indexed table with handles to all spawned entities
+function Spawn(xml, transform, allowStatic, jointExisting) end
+
+---(Server only) Register a custom tool that will show up in the player inventory and can be selected with scroll wheel. Do this only once per tool. Tools are disabled by default after RegisterTool and must be enabled per player using SetToolEnabled before they can be selected or used.
+---@param id string Tool unique identifier
+---@param name string Tool name to show in hud
+---@param file string Path to vox file or prefab xml
+---@param group number __optional__ – Tool group for this tool (1-6) Default is 6.
+function RegisterTool(id, name, file, group) end
+
+---(Server only)
+---@param toolId string Tool ID
+---@param enabled bool Tool enabled
+---@param playerId number __optional__ Player ID
+function SetToolEnabled(toolId, enabled, playerId) end
+
+
+
+---@return table List of added player Ids
+function GetAddedPlayers() end
+
+---@return table List of removed player Ids
+function GetRemovedPlayers() end
+
+---@return table List of all player Ids
+function GetAllPlayers() end
+
+---@return number Number of players
+function GetPlayerCount() end
+
+
+---@param input string The input identifier
+---@param playerId number __optional__ Player ID. On client, zero means client player. On server, zero means server (host) player.
+---@return boolean True if input was pressed during last frame
+function InputPressed(input, playerId) end
+
+---@param input string The input identifier
+---@param playerId number __optional__ Player ID. On client, zero means client player. On server, zero means server (host) player.
+---@return boolean True if input was released during last frame
+function InputReleased(input, playerId) end
+
+---@param input string The input identifier
+---@param playerId number __optional__ Player ID. On client, zero means client player. On server, zero means server (host) player.
+---@return boolean True if input is currently held down
+function InputDown(input, playerId) end

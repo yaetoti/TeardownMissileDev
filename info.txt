@@ -1,4 +1,6 @@
-name = Storm Shadow
-author = Basurman
-description = [noupload] The Storm Shadow is a Franco-British low-observable, long-range air-launched cruise missile that you can control. While flying, Left-Click to explode, Right-Click to detach. Shift to go SLOWER. Vox model made by me. Script made by My Cresta and modified by me.
+name = Air Launched Cruise Missile
+author = yaetoti
+description = [noupload] Air Launched Cruise Missile by yaetoti
 tags = Tool
+version = 2
+preview = missile.png
