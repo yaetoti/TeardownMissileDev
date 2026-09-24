@@ -26,53 +26,31 @@ function server.init()
 
   leftWing = rocketProjectile2[8]
   rightWing = rocketProjectile2[7]
+
   leftTransform = GetShapeLocalTransform(leftWing)
   rightTransform = GetShapeLocalTransform(rightWing)
   leftSizeX, leftSizeY, leftSizeZ, leftScale = GetShapeSize(leftWing)
   rightSizeX, rightSizeY, rightSizeZ, rightScale = GetShapeSize(rightWing)
 
-  leftOffset = Vec()
-  rightOffset = Vec()
-
-  --local shapes = GetBodyShapes(rocketProjectile2)
-  --DebugPrint("shapes: "..#rocketProjectile2)
-  --DebugPrint(rocketProjectile2)
-  --DebugPrint(rocketProjectile2[3])
-
-  --for i = 1, #rocketProjectile2 do
-  --  local s = rocketProjectile2[i]
-  --  DebugPrint(GetDescription(s))
-  --  if HasTag(s, "left_wing") then
-  --    leftWing = s
-  --  elseif HasTag(s, "right_wing") then
-  --    rightWing = s
-  --  end
-  --end
-
   rotation = 0
-
-  DebugPrint(leftWing)
-  DebugPrint(leftTransform)
-  --DebugPrint(rightWing)
 end
 
 function RotateAround(tr, pivot, rot)
   local relative = VecSub(tr.pos, pivot)
   local newPos   = VecAdd(pivot, QuatRotateVec(rot, relative))
-  local newRot   = QuatRotateQuat(rot, tr.rot)   -- order matters; try the other way if it looks mirrored
-  --local newRot   = QuatRotateQuat(tr.rot, rot)   -- order matters; try the other way if it looks mirrored
+  local newRot   = QuatRotateQuat(rot, tr.rot)
   return Transform(newPos, newRot)
 end
 
 function server.tick(deltaTime)
   time = time + deltaTime
   SetBodyTransform(rocketProjectile[1], Transform(Vec(-5 + math.sin(time), 3, 4)))
-  SetBodyTransform(rocketProjectile2[3], Transform(Vec(3 + math.sin(time), 2, 0)))
+  --SetBodyTransform(rocketProjectile2[1], Transform(Vec(3 + math.sin(time), 2, 0)))
+  SetBodyTransform(rocketProjectile2[1], Transform(Vec(3, 2, 6)))
 
   -- Controls
   rotation = rotation + InputValue("mousewheel")
   DebugPrint(rotation)
-  DebugPrint(leftOffset)
 
   -- Position
   if InputPressed("q") then
@@ -83,41 +61,23 @@ function server.tick(deltaTime)
     rotation = 40
   end
 
-  if InputPressed("uparrow") then
-    leftOffset = Vec(leftOffset[1], leftOffset[2], leftOffset[3] + leftScale)
-  end
-
-  if InputPressed("downarrow") then
-    leftOffset = Vec(leftOffset[1], leftOffset[2], leftOffset[3] - leftScale)
-  end
-
-  if InputPressed("leftarrow") then
-    leftOffset = Vec(leftOffset[1] - leftScale, leftOffset[2], leftOffset[3])
-  end
-
-  if InputPressed("rightarrow") then
-    leftOffset = Vec(leftOffset[1] + leftScale, leftOffset[2], leftOffset[3])
-  end
-
-  -- Move wings
-  -- 3 units from front
-
+  -- Set pivot 3 units from wing base
   local leftPivot = Vec(0.5 * leftSizeX * leftScale, 0, -3 * leftScale)
   local rightPivot = Vec(-0.5 * rightSizeX * rightScale, 0, -3 * rightScale)
 
   local newLeft = TransformCopy(leftTransform)
   local newRight = TransformCopy(rightTransform)
 
+  -- Wing vertical offset (TODO bake into saved transform)
   local verticalOffset = -2.5 * leftScale
   newLeft.pos = VecAdd(newLeft.pos, Vec(0, verticalOffset, 0))
   newRight.pos = VecAdd(newRight.pos, Vec(0, verticalOffset, 0))
 
+  -- Wing rotation
   newLeft = RotateAround(newLeft, leftPivot, QuatEuler(0, -rotation, 0))
   newRight = RotateAround(newRight, rightPivot, QuatEuler(0, rotation, 0))
 
-  --newLeft.pos = Vec(newLeft.pos[1], newLeft.pos[2] - 2.5 / 20, newLeft.pos[3])
-
-
+  -- Apply wing transform
   SetShapeLocalTransform(leftWing, newLeft)
   SetShapeLocalTransform(rightWing, newRight)
 
