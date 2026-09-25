@@ -1,5 +1,5 @@
 #version 2
-#include "missile.lua"
+#include "Missile.lua"
 
 local time = 0
 local ToolTabletId = "tablet"
@@ -24,12 +24,15 @@ function server.init()
   -- Register tools
   RegisterTool(ToolTabletId, "Tablet", "MOD/vox/Tablet.vox", 4)
 
+  missiles = {}
   for i = 1, 20 do
-    Missile:new():Spawn(Transform(Vec(3 + i * 2, 2, 20)))
+    local missile = Missile:new()
+    missile:spawn(Transform(Vec(0 + i * 4, 2, 20)))
+    table.insert(missiles, missile)
   end
 
   missile = Missile:new()
-  missile:Spawn(Transform(Vec(3, 5, 6)))
+  missile:spawn(Transform(Vec(3, 5, 6)))
   DebugPrint(missile)
 
   rocketProjectile = Spawn("MOD/vox/rocket.xml", Transform(Vec(0, 3, 4)))
@@ -68,6 +71,10 @@ function server.tick(deltaTime)
       wingsState = "FOLDING"
       targetRotation = 0
     end
+
+    for _, m in ipairs(missiles) do
+      m:foldWings()
+    end
   end
 
   if InputPressed("e") then
@@ -75,6 +82,15 @@ function server.tick(deltaTime)
       wingsState = "SPREADING"
       targetRotation = 40
     end
+
+    for _, m in ipairs(missiles) do
+      m:spreadWings()
+    end
+  end
+
+  -- TODO Update missiles
+  for _, m in ipairs(missiles) do
+    m:update(deltaTime)
   end
 
   -- Update progress

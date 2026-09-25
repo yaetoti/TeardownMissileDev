@@ -1,0 +1,77 @@
+#version 2
+
+-- https://easings.net
+
+if not Math then
+  Math = {}
+
+  function Math:lerp(a, b, t)
+    return a + (b - a) * t
+  end
+
+  function Math:clamp(value, min, max)
+    if value < min then
+      return min
+    elseif value > max then
+      return max
+    else
+      return value
+    end
+  end
+
+  function Math:clamp01(value)
+    return self:clamp(value, 0, 1)
+  end
+
+  --
+  -- Ease in
+  --
+
+  function Math:easeIn2(x)
+    return x^2
+  end
+
+  function Math:easeIn3(x)
+    return x^3
+  end
+
+  function Math:easeInExp(x)
+    if x == 0 then
+      return 0
+    end
+
+    return 2 ^ (10 * x - 10)
+  end
+
+  --
+  -- Ease out
+  --
+
+  function Math:easeOut2(x)
+    return 1 - (1 - x) ^ 2;
+  end
+
+  function Math:easeOut3(x)
+    return 1 - (1 - x) ^ 3;
+  end
+
+
+  function Math:easeOutExp(x)
+    if x == 1 then
+      return 1
+    end
+
+    return 1 - 2 ^ (-10 * x)
+  end
+
+  function Math:easeOutElastic(x)
+    local c4 = (2 * math.pi) / 3;
+    if x == 0 then
+      return 0
+    elseif x == 1 then
+      return 0
+    else
+      return math.pow(2, -10 * x) * math.sin((x * 10 - 0.75) * c4) + 1
+    end
+  end
+end
