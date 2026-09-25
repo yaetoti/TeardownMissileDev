@@ -74,4 +74,15 @@ if not Math then
       return math.pow(2, -10 * x) * math.sin((x * 10 - 0.75) * c4) + 1
     end
   end
+
+  ---Rotates transform around a pivot point
+  ---@param transform Transform Transform to rotate
+  ---@param pivot Vec Pivot point
+  ---@param rotation Quat Rotation to apply to the transform
+  function Math:RotateAround(transform, pivot, rotation)
+    local relative = VecSub(transform.pos, pivot)
+    local newPos = VecAdd(pivot, QuatRotateVec(rotation, relative))
+    local newRot = QuatRotateQuat(rotation, transform.rot)
+    return Transform(newPos, newRot)
+  end
 end

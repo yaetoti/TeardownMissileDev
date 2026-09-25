@@ -67,8 +67,8 @@ if not Missile then
   function Missile:update(deltaTime)
     -- Update wings
     self:_updateWingsSpreading(deltaTime)
-    local newLeftWingTransform = RotateAround(self.leftWingTransform, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
-    local newRightWingTransform = RotateAround(self.rightWingTransform, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
+    local newLeftWingTransform = Math:RotateAround(self.leftWingTransform, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
+    local newRightWingTransform = Math:RotateAround(self.rightWingTransform, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
     SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
     SetShapeLocalTransform(self.rightWing, newRightWingTransform)
   end
