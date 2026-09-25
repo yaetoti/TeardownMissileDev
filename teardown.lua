@@ -300,3 +300,24 @@ function InputReleased(input, playerId) end
 ---@param playerId number __optional__ Player ID. On client, zero means client player. On server, zero means server (host) player.
 ---@return boolean True if input is currently held down
 function InputDown(input, playerId) end
+
+
+
+---@param handle number Sound handle
+---@param pos Vec __optional__ World position as vector. Default is player position.
+---@param volume number __optional__ Playback volume. Default is 1.0
+---@param registerVolume boolean __optional__ Register position and volume of this sound for GetLastSound. Default is true
+---@param pitch number __optional__ Playback pitch. Default 1.0
+---@return number handle: Sound play handle
+function PlaySound(handle, pos, volume, registerVolume, pitch) end
+
+
+---@param playerId number Player ID of the recipient. Use 0 to broadcast to every player.
+---@param function string Name of the function to be invoked. This function must exist within issuing script.
+---@param params any __optional__ Optional parameters to send to the recipent(s). Arguments should match the signature of the specified function.
+function ClientCall(playerId, func, params) end
+
+---@param handle number Body handle
+---@return Transform Transform of the body
+function GetBodyTransform(handle) end
+

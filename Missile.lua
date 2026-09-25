@@ -1,5 +1,6 @@
 #version 2
 #include "Math.lua"
+#include "SoundManager.lua"
 
 if not Missile then
   Missile = {}
@@ -80,6 +81,9 @@ if not Missile then
 
     self.wingsStateProgress = 1 - self.wingsStateProgress
     self.wingsState = Missile.WingsState.SPREADING
+
+    local t = GetBodyTransform(self.entities[1])
+    server.PlaySoundRpc(0, "wings", t.pos)
   end
 
   function Missile:foldWings()

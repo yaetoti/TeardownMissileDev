@@ -1,5 +1,6 @@
 #version 2
 #include "Missile.lua"
+#include "SoundManager.lua"
 
 local time = 0
 local ToolTabletId = "tablet"
@@ -7,14 +8,11 @@ local ToolTabletId = "tablet"
 -- Client
 
 function client.init()
-
+  SoundManager:Init()
 end
 
 function client.tick(deltaTime)
-  --DebugPrint("Hello, world!")
 end
-
-
 
 -- Server
 
@@ -24,19 +22,21 @@ function server.init()
 
   -- Spawn missiles
   missiles = {}
-  for i = 1, 20 do
-    local missile = Missile:new()
-    missile:spawn(Transform(Vec(0 + i * 4, 2, 20)))
-    table.insert(missiles, missile)
+  for j = 1, 10 do -- 10
+    for i = 1, 20 do -- 20
+      local missile = Missile:new()
+      missile:spawn(Transform(Vec(-45 + i * 4, 1, -25 + j * 10), QuatEuler(0, 180, 0)))
+      table.insert(missiles, missile)
+    end
   end
 
   -- Spawn prototype missile
   missile = Missile:new()
-  missile:spawn(Transform(Vec(3, 2, 6)))
+  --missile:spawn(Transform(Vec(3, 2, 6)))
   DebugPrint(missile)
 
   -- Spawn old missile
-  rocketProjectile = Spawn("MOD/vox/rocket.xml", Transform(Vec(-5, 3, 10)))
+  --rocketProjectile = Spawn("MOD/vox/rocket.xml", Transform(Vec(-5, 3, 10)))
 end
 
 function server.tick(deltaTime)
