@@ -242,6 +242,14 @@ function GetPlayerCanUseTool(player) end
 ---@param transform Transform – Desired transform
 function SetBodyTransform(handle, transform) end
 
+---Return the size of a shape in voxels
+---@param handle number Shape handle
+---@return number xsize: Size in voxels along x axis
+---@return number ysize: Size in voxels along y axis
+---@return number zsize: Size in voxels along z axis
+---@return number scale: The size of one voxel in meters (with default scale it is 0.1)
+function GetShapeSize(handle) end
+
 ---The first argument can be either a prefab XML file in your mod folder or a string with XML content. It is also possible to spawn prefabs from other mods, by using the mod id followed by colon, followed by the prefab path. Spawning prefabs from other mods should be used with caution since the referenced mod might not be installed.
 ---@param xml string File name or xml string
 ---@param transform Transform Spawn transform
@@ -259,7 +267,7 @@ function RegisterTool(id, name, file, group) end
 
 ---(Server only)
 ---@param toolId string Tool ID
----@param enabled bool Tool enabled
+---@param enabled boolean Tool enabled
 ---@param playerId number __optional__ Player ID
 function SetToolEnabled(toolId, enabled, playerId) end
 

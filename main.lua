@@ -1,7 +1,10 @@
 #version 2
+#include "missile.lua"
 
 local time = 0
 local ToolTabletId = "tablet"
+local WING_SPREAD_TIME = 0.15
+local WING_FOLD_TIME = 0.6
 
 -- Client
 
@@ -21,6 +24,14 @@ function server.init()
   -- Register tools
   RegisterTool(ToolTabletId, "Tablet", "MOD/vox/Tablet.vox", 4)
 
+  for i = 1, 20 do
+    Missile:new():Spawn(Transform(Vec(3 + i * 2, 2, 20)))
+  end
+
+  missile = Missile:new()
+  missile:Spawn(Transform(Vec(3, 5, 6)))
+  DebugPrint(missile)
+
   rocketProjectile = Spawn("MOD/vox/rocket.xml", Transform(Vec(0, 3, 4)))
   rocketProjectile2 = Spawn("MOD/vox/Missile.xml", Transform(Vec(0, 2, 0)))
 
@@ -33,33 +44,61 @@ function server.init()
   rightSizeX, rightSizeY, rightSizeZ, rightScale = GetShapeSize(rightWing)
 
   rotation = 0
+  wingsState = "FOLDED"
+  progress = 0
+  targetRotation = 0
 end
 
 function RotateAround(tr, pivot, rot)
   local relative = VecSub(tr.pos, pivot)
-  local newPos   = VecAdd(pivot, QuatRotateVec(rot, relative))
-  local newRot   = QuatRotateQuat(rot, tr.rot)
+  local newPos = VecAdd(pivot, QuatRotateVec(rot, relative))
+  local newRot = QuatRotateQuat(rot, tr.rot)
   return Transform(newPos, newRot)
 end
 
 function server.tick(deltaTime)
   time = time + deltaTime
-  SetBodyTransform(rocketProjectile[1], Transform(Vec(-5 + math.sin(time), 3, 4)))
+  SetBodyTransform(rocketProjectile[1], Transform(Vec(-5 + math.sin(time) * 0, 3, 10)))
   --SetBodyTransform(rocketProjectile2[1], Transform(Vec(3 + math.sin(time), 2, 0)))
   SetBodyTransform(rocketProjectile2[1], Transform(Vec(3, 2, 6)))
 
   -- Controls
-  rotation = rotation + InputValue("mousewheel")
-  DebugPrint(rotation)
-
-  -- Position
   if InputPressed("q") then
-    rotation = 0
+    if wingsState == "SPREAD" or wingsState == "SPREADING" then
+      wingsState = "FOLDING"
+      targetRotation = 0
+    end
   end
 
   if InputPressed("e") then
-    rotation = 40
+    if wingsState == "FOLDED" or wingsState == "FOLDING" then
+      wingsState = "SPREADING"
+      targetRotation = 40
+    end
   end
+
+  -- Update progress
+  if wingsState == "SPREADING" then
+    progress = progress + deltaTime / WING_SPREAD_TIME
+    if progress >= 1 then
+      progress = 1
+      wingsState = "SPREAD"
+    end
+    -- Ease-in
+    local t = progress * progress * progress
+    rotation = t * targetRotation
+  elseif wingsState == "FOLDING" then
+    progress = progress - deltaTime / WING_FOLD_TIME
+    if progress <= 0 then
+      progress = 0
+      wingsState = "FOLDED"
+    end
+    -- Ease-out
+    local t = progress * (2 - progress)
+    rotation = t * 40
+  end
+
+  --DebugPrint("State: " .. wingsState .. " Progress: " .. progress .. " Rotation: " .. rotation)
 
   -- Set pivot 3 units from wing base
   local leftPivot = Vec(0.5 * leftSizeX * leftScale, 0, -3 * leftScale)
