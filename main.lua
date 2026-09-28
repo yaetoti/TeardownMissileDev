@@ -127,7 +127,11 @@ end
 -- Client
 
 function client.init()
-  SoundManager:Init()
+  SoundManager:init()
+end
+
+function client.destroy()
+  SoundManager:destroy()
 end
 
 -- How much missiles can we create at once? One.

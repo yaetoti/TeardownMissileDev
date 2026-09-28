@@ -3,13 +3,18 @@
 if not SoundManager then
   SoundManager = {}
 
-  function SoundManager:Init()
+  function SoundManager:init()
     client.sounds = {
       wings = LoadSound("MOD/snd/wings.ogg", 5),
       explosion = LoadSound("MOD/snd/explosion.ogg", 200),
     }
+  end
 
-    -- TODO unload sounds
+  function SoundManager:destroy()
+    -- Unload sounds
+    for _, handle in pairs(client.sounds) do
+      UnloadSound(handle)
+    end
   end
 
   ---@param soundId string Sound ID
