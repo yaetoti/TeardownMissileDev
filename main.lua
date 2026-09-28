@@ -36,7 +36,7 @@ function client.createMissileServerRpc()
 
   client.activeRequests.createMissile = true
   ServerCall("server.createMissileServerRpc", GetLocalPlayer())
-  -- TODO remoe debug message
+  -- TODO remove debug message
   DebugPrint("Request sent")
 end
 
@@ -67,8 +67,6 @@ function server.createMissileResponseClientRpc(clientId, approval, missileId, mi
   ClientCall(clientId, "client.createMissileResponseClientRpc", approval, missileId, missileBody)
 end
 
--- TODO remove rocket when player leaves
-
 function client.createMissileResponseClientRpc(approval, missileId, missileBody)
   client.activeRequests.createMissile = false
 
@@ -83,6 +81,7 @@ function client.createMissileResponseClientRpc(approval, missileId, missileBody)
   -- TODO how to detect that body is already destroyed?
 end
 
+-- TODO remove exploded rockets
 
 
 function client.explodeMissileServerRpc(missileId)
@@ -182,6 +181,17 @@ function server.tick(deltaTime)
 
     -- Enable tools
     SetToolEnabled(ToolTabletId, true, playerId)
+  end
+
+  -- Destroy removed players
+  for _, playerId in ipairs(GetRemovedPlayers()) do
+    local player = server.players[playerId]
+    if player.isControllingMissile then
+      local missile = server.missiles[player.controlledMissileId]
+      missile:explode()
+    end
+
+    server.players[playerId] = nil
   end
 end
 
