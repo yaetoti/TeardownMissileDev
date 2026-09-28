@@ -19,6 +19,7 @@ if not Missile then
 
   Missile.EXPLOSION_STRENGTH = 4.0
 
+  -- TODO make it a table function
   function Missile:new()
     local obj = {
       -- Physical
@@ -45,6 +46,11 @@ if not Missile then
   end
 
   function Missile:spawn(transform)
+    -- Not reusable
+    if self.exploded then
+      return
+    end
+
     if transform == nil then
       transform = Transform()
     end
@@ -71,12 +77,18 @@ if not Missile then
   end
 
   function Missile:update(deltaTime)
+    if self.exploded then
+      return
+    end
+
     -- Update wings
     self:_updateWingsSpreading(deltaTime)
     local newLeftWingTransform = Math:RotateAround(self.leftWingTransform, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
     local newRightWingTransform = Math:RotateAround(self.rightWingTransform, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
     SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
     SetShapeLocalTransform(self.rightWing, newRightWingTransform)
+
+    -- TODO update movement
   end
 
   function Missile:spreadWings()
@@ -126,8 +138,7 @@ if not Missile then
     Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
     Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
 
-    -- TODO add sound
-    server.PlaySoundClientRpc(0, "explosion", explodePoint, 8)
+    server.PlaySoundClientRpc(0, "explosion", explodePoint, 1.0)
 
     -- Delete body
     Delete(self.entities[1])

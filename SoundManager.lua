@@ -5,8 +5,11 @@ if not SoundManager then
 
   function SoundManager:Init()
     client.sounds = {
-      wings = LoadSound("MOD/snd/wings.ogg", 5)
+      wings = LoadSound("MOD/snd/wings.ogg", 5),
+      explosion = LoadSound("MOD/snd/explosion.ogg", 200),
     }
+
+    -- TODO unload sounds
   end
 
   ---@param soundId string Sound ID

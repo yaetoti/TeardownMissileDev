@@ -193,6 +193,20 @@ function server.tick(deltaTime)
 
     server.players[playerId] = nil
   end
+
+  -- Update missiles
+  local markedForDestruction = {}
+  for missileId, missile in pairs(server.missiles) do
+    missile:update(deltaTime)
+    if missile.exploded then
+      table.insert(markedForDestruction, missileId)
+    end
+  end
+
+  -- Remove marked missiles
+  for _, missileId in ipairs(markedForDestruction) do
+    server.missiles[missileId] = nil
+  end
 end
 
 function server.destroy()
