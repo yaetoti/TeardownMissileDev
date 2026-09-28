@@ -20,7 +20,7 @@ server.players = {}
 server.nextMissileId = 1
 
 function server.createMissile()
-  local missile =  Missile:new()
+  local missile =  Missile.new()
   local missileId = server.nextMissileId
   server.nextMissileId = server.nextMissileId + 1
   server.missiles[missileId] = missile
@@ -81,7 +81,7 @@ function client.createMissileResponseClientRpc(approval, missileId, missileBody)
   -- TODO how to detect that body is already destroyed?
 end
 
--- TODO remove exploded rockets
+
 
 
 function client.explodeMissileServerRpc(missileId)
@@ -181,7 +181,7 @@ function server.tick(deltaTime)
 
   -- Init connected players
   for _, playerId in ipairs(GetAddedPlayers()) do
-    server.players[playerId] = Player:new()
+    server.players[playerId] = Player.new()
 
     -- Enable tools
     SetToolEnabled(ToolTabletId, true, playerId)

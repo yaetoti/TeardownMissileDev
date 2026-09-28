@@ -19,8 +19,7 @@ if not Missile then
 
   Missile.EXPLOSION_STRENGTH = 4.0
 
-  -- TODO make it a table function
-  function Missile:new()
+  function Missile.new()
     local obj = {
       -- Physical
       entities = {},
@@ -42,7 +41,7 @@ if not Missile then
       transform = Transform()
     }
 
-    return setmetatable(obj, self)
+    return setmetatable(obj, Missile)
   end
 
   function Missile:spawn(transform)
