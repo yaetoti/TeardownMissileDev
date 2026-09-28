@@ -54,7 +54,9 @@ if not Missile then
       transform = Transform()
     end
 
-    self.entities = Spawn("MOD/vox/Missile.xml", transform)
+    self.transform = transform
+
+    self.entities = Spawn("MOD/vox/Missile.xml", self.transform)
     self.leftWing = self.entities[8]
     self.rightWing = self.entities[7]
     self.leftWingTransform = GetShapeLocalTransform(self.leftWing)
@@ -98,9 +100,7 @@ if not Missile then
     self.wingsStateProgress = 1 - self.wingsStateProgress
     self.wingsState = Missile.WingsState.SPREADING
 
-    -- TODO replace with transform
-    local t = GetBodyTransform(self.entities[1])
-    server.PlaySoundClientRpc(0, "wings", t.pos)
+    server.PlaySoundClientRpc(0, "wings", self.transform.pos)
   end
 
   function Missile:foldWings()
