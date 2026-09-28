@@ -317,7 +317,26 @@ function PlaySound(handle, pos, volume, registerVolume, pitch) end
 ---@param params any __optional__ Optional parameters to send to the recipent(s). Arguments should match the signature of the specified function.
 function ClientCall(playerId, func, params) end
 
+---@param playerId number Player ID of the recipient. Use 0 to broadcast to every player.
+---@param function string Name of the function to be invoked. This function must exist within issuing script.
+---@param params any __optional__ Optional parameters to send to the server. Arguments should match the signature of the specified function.
+function ClientCall(playerId, func, params) end
+
+---@return number Local player ID.
+function GetLocalPlayer() end
+
+
+
 ---@param handle number Body handle
 ---@return Transform Transform of the body
 function GetBodyTransform(handle) end
+
+
+
+---Calling this function will add a button on the bottom bar or in the main pause menu (center of the screen) when the game is paused. Identified by 'location' parameter, it can be below "Main menu" button (by passing "main_bottom" value)or above (by passing "main_top"). A primary button will be placed in the main pause menu if this function is called from a playable mod. There can be only one primary button. Use this as a way to bring up mod settings or other user interfaces while the game is running. Call this function every frame from the tick function for as long as the pause menu button should still be visible. Only one button per script is allowed. Consecutive calls replace button added in previous calls.
+---@param title string Text on button
+---@param location string __optional__ Button location. If "bottom_bar" - bottom bar, if "main_bottom" - below "Main menu" button, if "main_top" - above "Main menu" button. Default "bottom_bar".
+---@param disabled boolean __optional__ Disable button. Button will be rendered as grayed out. Default is false. Only available when used with "bottom_bar".
+---@return boolean clicked: True if clicked, false otherwise
+function PauseMenuButton(title, location, disabled) end
 

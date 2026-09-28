@@ -14,8 +14,8 @@ if not SoundManager then
   ---@param volume number __optional__ Playback volume. Default is 1.0
   ---@param registerVolume boolean __optional__ Register position and volume of this sound for GetLastSound. Default is true
   ---@param pitch number __optional__ Playback pitch. Default 1.0
-  function server.PlaySoundRpc(playerId, soundId, pos, volume, registerVolume, pitch)
-    ClientCall(playerId, "client.PlaySoundRpcHandler", soundId, pos, volume, registerVolume, pitch)
+  function server.PlaySoundClientRpc(playerId, soundId, pos, volume, registerVolume, pitch)
+    ClientCall(playerId, "client.PlaySoundClientRpc", soundId, pos, volume, registerVolume, pitch)
   end
 
   ---@param soundId string Sound ID
@@ -23,7 +23,7 @@ if not SoundManager then
   ---@param volume number __optional__ Playback volume. Default is 1.0
   ---@param registerVolume boolean __optional__ Register position and volume of this sound for GetLastSound. Default is true
   ---@param pitch number __optional__ Playback pitch. Default 1.0
-  function client.PlaySoundRpcHandler(soundId, pos, volume, registerVolume, pitch)
+  function client.PlaySoundClientRpc(soundId, pos, volume, registerVolume, pitch)
     pos = pos or GetPlayerTransform().pos
     volume = volume or 1.0
     registerVolume = registerVolume or true

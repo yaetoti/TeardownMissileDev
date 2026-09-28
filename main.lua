@@ -1,9 +1,129 @@
 #version 2
 #include "Missile.lua"
 #include "SoundManager.lua"
+#include "Player.lua"
 
 local time = 0
 local ToolTabletId = "tablet"
+
+client.activeRequests = {
+  createMissile = false,
+  explodeMissile = false,
+}
+
+client.isControllingMissile = false
+client.missileId = 0
+client.missileBody = 0
+
+server.missiles = {}
+server.players = {}
+server.nextMissileId = 1
+
+function server.createMissile()
+  local missile =  Missile:new()
+  local missileId = server.nextMissileId
+  server.nextMissileId = server.nextMissileId + 1
+  server.missiles[missileId] = missile
+  return missile, missileId
+end
+
+
+
+function client.createMissileServerRpc()
+  if client.activeRequests.createMissile or client.isControllingMissile then
+    return
+  end
+
+  client.activeRequests.createMissile = true
+  ServerCall("server.createMissileServerRpc", GetLocalPlayer())
+  -- TODO remoe debug message
+  DebugPrint("Request sent")
+end
+
+function server.createMissileServerRpc(clientId)
+  DebugPrint("Request got")
+  local player = server.players[clientId]
+  if not player or player.isControllingMissile then
+    -- Reject
+    DebugPrint("Rejected")
+    server.createMissileResponseClientRpc(clientId, false)
+    return
+  end
+
+  -- Create missile
+  local missile, missileId = server.createMissile()
+  missile:spawn(Transform(Vec(0, 2, missileId * 6)))
+
+  -- Update status
+  player.isControllingMissile = true
+  player.controlledMissileId = missileId
+
+  -- Send confirmation and body
+  DebugPrint("Created")
+  server.createMissileResponseClientRpc(clientId, true, missileId, missile.entities[1])
+end
+
+function server.createMissileResponseClientRpc(clientId, approval, missileId, missileBody)
+  ClientCall(clientId, "client.createMissileResponseClientRpc", approval, missileId, missileBody)
+end
+
+-- TODO remove rocket when player leaves
+
+function client.createMissileResponseClientRpc(approval, missileId, missileBody)
+  client.activeRequests.createMissile = false
+
+  if not approval then
+    return
+  end
+
+  client.isControllingMissile = true
+  client.missileId = missileId
+  client.missileBody = missileBody
+
+  -- TODO how to detect that body is already destroyed?
+end
+
+
+
+function client.explodeMissileServerRpc(missileId)
+  if not client.isControllingMissile or client.activeRequests.explodeMissile then
+    return
+  end
+
+  ServerCall("server.explodeMissileServerRpc", GetLocalPlayer(), missileId)
+end
+
+function server.explodeMissileServerRpc(clientId, missileId)
+  local player = server.players[clientId]
+  if not player.isControllingMissile or player.controlledMissileId ~= missileId then
+    -- Reject
+    server.explodeMissileResponseClientRpc(clientId, false)
+    return
+  end
+
+  local missile = server.missiles[missileId]
+  missile:explode()
+
+  player.isControllingMissile = false
+
+  -- Approve
+  server.explodeMissileResponseClientRpc(clientId, true)
+end
+
+function server.explodeMissileResponseClientRpc(clientId, approval)
+  ClientCall(clientId, "client.explodeMissileResponseClientRpc", approval)
+end
+
+function client.explodeMissileResponseClientRpc(approval)
+  client.activeRequests.explodeMissile = false
+  if not approval then
+    return
+  end
+
+  client.isControllingMissile = false
+end
+
+
 
 -- Client
 
@@ -11,7 +131,38 @@ function client.init()
   SoundManager:Init()
 end
 
+-- How much missiles can we create at once? One.
+
+--Inside game
+-- [create missile and control it]
+-- [control the launched missile again]
+-- [blow up the launched missile]
+
+--Inside missile
+-- [leave missile]
+-- [blow up missile]
+-- [input]
+
+-- Client wants to [create missile and control it]
+-- Server checks if client can. If so, state changes on server and we notify player
+
+
+
+-- Playing
+-- ControllingMissile
+
 function client.tick(deltaTime)
+  if InputPressed("lmb") and GetPlayerTool() == ToolTabletId then
+    -- Create missile
+    if not client.isControllingMissile and not client.activeRequests.createMissile then
+      client.createMissileServerRpc()
+    end
+
+    -- Explode missile
+    if client.isControllingMissile and not client.activeRequests.explodeMissile then
+      client.explodeMissileServerRpc(client.missileId)
+    end
+  end
 end
 
 -- Server
@@ -19,24 +170,6 @@ end
 function server.init()
   -- Register tools
   RegisterTool(ToolTabletId, "Tablet", "MOD/vox/Tablet.vox", 4)
-
-  -- Spawn missiles
-  missiles = {}
-  for j = 1, 10 do -- 10
-    for i = 1, 20 do -- 20
-      local missile = Missile:new()
-      missile:spawn(Transform(Vec(-45 + i * 4, 1, -25 + j * 10), QuatEuler(0, 180, 0)))
-      table.insert(missiles, missile)
-    end
-  end
-
-  -- Spawn prototype missile
-  missile = Missile:new()
-  --missile:spawn(Transform(Vec(3, 2, 6)))
-  DebugPrint(missile)
-
-  -- Spawn old missile
-  --rocketProjectile = Spawn("MOD/vox/rocket.xml", Transform(Vec(-5, 3, 10)))
 end
 
 function server.tick(deltaTime)
@@ -45,29 +178,16 @@ function server.tick(deltaTime)
 
   -- Init connected players
   for _, playerId in ipairs(GetAddedPlayers()) do
+    server.players[playerId] = Player:new()
+
     -- Enable tools
     SetToolEnabled(ToolTabletId, true, playerId)
-  end
-
-  -- Controls
-  if InputPressed("q") then
-    for _, m in ipairs(missiles) do
-      m:foldWings()
-    end
-  end
-
-  if InputPressed("e") then
-    for _, m in ipairs(missiles) do
-      m:spreadWings()
-    end
-  end
-
-  -- Update missiles
-  for _, m in ipairs(missiles) do
-    m:update(deltaTime)
   end
 end
 
 function server.destroy()
 
 end
+
+
+

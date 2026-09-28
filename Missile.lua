@@ -17,6 +17,8 @@ if not Missile then
   Missile.WINGS_FOLDED_ROTATION = 0
   Missile.WINGS_SPREAD_ROTATION = 40
 
+  Missile.EXPLOSION_STRENGTH = 4.0
+
   function Missile:new()
     local obj = {
       -- Physical
@@ -33,7 +35,10 @@ if not Missile then
       wingsTargetRotation = Missile.WINGS_FOLDED_ROTATION,
       wingsStateProgress = 1,
       wingsSpreading = 0,
-      wingsState = Missile.WingsState.FOLDED
+      wingsState = Missile.WingsState.FOLDED,
+
+      exploded = false,
+      transform = Transform()
     }
 
     return setmetatable(obj, self)
@@ -82,8 +87,9 @@ if not Missile then
     self.wingsStateProgress = 1 - self.wingsStateProgress
     self.wingsState = Missile.WingsState.SPREADING
 
+    -- TODO replace with transform
     local t = GetBodyTransform(self.entities[1])
-    server.PlaySoundRpc(0, "wings", t.pos)
+    server.PlaySoundClientRpc(0, "wings", t.pos)
   end
 
   function Missile:foldWings()
@@ -93,6 +99,40 @@ if not Missile then
 
     self.wingsStateProgress = 1 - self.wingsStateProgress
     self.wingsState = Missile.WingsState.FOLDING
+  end
+
+  function Missile:explode()
+    if self.exploded then
+      return
+    end
+
+    -- TODO debug point
+    local explodePointLocal = Vec(0, 0, -6.5)
+    local explodePoint = TransformToParentPoint(self.transform, explodePointLocal)
+
+    SpawnFire(explodePoint)
+
+    -- TODO can be smoke or plain
+    ParticleReset()
+    ParticleType("fire")
+    ParticleColor(0.7, 0.6, 0.5)
+    SpawnParticle(explodePoint, Vec(1, 1, 1), 10.0)
+
+    ParticleReset()
+    ParticleType("smoke")
+    ParticleColor(0.7, 0.6, 0.5)
+    SpawnParticle(explodePoint, Vec(1, 1, 1), 10.0)
+
+    Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
+    Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
+
+    -- TODO add sound
+    server.PlaySoundClientRpc(0, "explosion", explodePoint, 8)
+
+    -- Delete body
+    Delete(self.entities[1])
+
+    self.exploded = true
   end
 
   function Missile:_updateWingsSpreading(deltaTime)
