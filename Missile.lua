@@ -18,6 +18,7 @@ if not Missile then
   Missile.WINGS_SPREAD_ROTATION = 40
 
   Missile.EXPLOSION_STRENGTH = 4.0
+  Missile.NOSE_OFFSET = Vec(0, 0, 2.5)
 
   function Missile.new()
     local obj = {
@@ -117,25 +118,24 @@ if not Missile then
       return
     end
 
-    -- TODO debug point
-    local explodePointLocal = Vec(0, 0, -6.5)
-    local explodePoint = TransformToParentPoint(self.transform, explodePointLocal)
+    local explodePoint = TransformToParentPoint(self.transform, Missile.NOSE_OFFSET)
 
-    SpawnFire(explodePoint)
+
 
     -- TODO can be smoke or plain
-    ParticleReset()
-    ParticleType("fire")
-    ParticleColor(0.7, 0.6, 0.5)
-    SpawnParticle(explodePoint, Vec(1, 1, 1), 10.0)
+    --ParticleReset()
+    --ParticleType("smoke")
+    --ParticleColor(0.7, 0.6, 0.5)
+    --SpawnParticle(explodePoint, Vec(1, 1, 1), 10.0)
+    --
+    --ParticleReset()
+    --ParticleType("smoke")
+    --ParticleColor(0.7, 0.6, 0.5)
+    --SpawnParticle(explodePoint, Vec(1, 1, 1), 10.0)
 
-    ParticleReset()
-    ParticleType("smoke")
-    ParticleColor(0.7, 0.6, 0.5)
-    SpawnParticle(explodePoint, Vec(1, 1, 1), 10.0)
-
+    SpawnFire(explodePoint)
     Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
-    Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
+    --Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
 
     server.PlaySoundClientRpc(0, "explosion", explodePoint, 1.0)
 
