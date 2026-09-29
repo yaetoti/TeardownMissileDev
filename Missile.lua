@@ -2,6 +2,8 @@
 #include "Math.lua"
 #include "SoundManager.lua"
 
+-- Missile is facing in the -Z direction
+
 if not Missile then
   Missile = {}
   Missile.__index = Missile
@@ -18,7 +20,8 @@ if not Missile then
   Missile.WINGS_SPREAD_ROTATION = 40
 
   Missile.EXPLOSION_STRENGTH = 4.0
-  Missile.NOSE_OFFSET = Vec(0, 0, 2.5)
+  Missile.NOSE_OFFSET = Vec(0, 0, -2.5)
+  Missile.CAMERA_OFFSET = Vec(0, 1, 6.0)
 
   function Missile.new()
     local obj = {
@@ -91,6 +94,7 @@ if not Missile then
     SetShapeLocalTransform(self.rightWing, newRightWingTransform)
 
     -- TODO update movement
+    SetBodyTransform(self.entities[1], self.transform)
   end
 
   function Missile:spreadWings()

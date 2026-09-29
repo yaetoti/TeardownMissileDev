@@ -53,6 +53,7 @@ function server.createMissileServerRpc(clientId)
   -- Create missile
   local missile, missileId = server.createMissile()
   missile:spawn(Transform(Vec(0, 2, missileId * 6)))
+  missile:spreadWings()
 
   -- Update status
   player.isControllingMissile = true
@@ -155,6 +156,7 @@ end
 -- ControllingMissile
 
 function client.tick(deltaTime)
+  -- Handle input
   if InputPressed("lmb") and GetPlayerTool() == ToolTabletId then
     -- Create missile
     if not client.isControllingMissile and not client.activeRequests.createMissile then
@@ -165,6 +167,15 @@ function client.tick(deltaTime)
     if client.isControllingMissile and not client.activeRequests.explodeMissile then
       client.explodeMissileServerRpc(client.missileId)
     end
+  end
+
+  if client.isControllingMissile and IsHandleValid(client.missileBody) then
+    -- Handle camera
+    local missileTransform = GetBodyTransform(client.missileBody)
+    local cameraPos = TransformToParentPoint(missileTransform, Missile.CAMERA_OFFSET)
+    local cameraRot = missileTransform.rot
+
+    SetCameraTransform(Transform(cameraPos, cameraRot))
   end
 end
 

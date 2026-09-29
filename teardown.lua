@@ -340,3 +340,15 @@ function GetBodyTransform(handle) end
 ---@return boolean clicked: True if clicked, false otherwise
 function PauseMenuButton(title, location, disabled) end
 
+
+---(Client only) Override current camera transform for this frame. Call continuously to keep overriding. When transform of some shape or body used to calculate camera transform, consider use of AttachCameraTo, because you might be using transform from previous physics update (that was on previous frame or even earlier depending on fps and timescale).
+---@param transform Transform Desired camera transform
+---@param fov number __optional__ Optional horizontal field of view in degrees (default: 90)
+function SetCameraTransform(transform, fov) end
+
+---@param handle number Entity handle
+---@return boolean Returns true if the entity pointed to by handle still exists
+function IsHandleValid(handle) end
+
+
+
