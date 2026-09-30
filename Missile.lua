@@ -22,7 +22,7 @@ if not Missile then
   Missile.EXPLOSION_STRENGTH = 4.0
   Missile.NOSE_OFFSET = Vec(0, 0, -2.5)
   Missile.CAMERA_OFFSET = Vec(0, 1, 6.0)
-  Missile.MASS = 1
+  Missile.MASS = 1000
 
   function Missile.new()
     local obj = {
@@ -96,37 +96,52 @@ if not Missile then
 
     -- Update wings
     self:_updateWingsSpreading(deltaTime)
-    local newLeftWingTransform = Math:RotateAround(self.leftWingTransform, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
-    local newRightWingTransform = Math:RotateAround(self.rightWingTransform, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
+    local newLeftWingTransform = Math.RotateAround(self.leftWingTransform, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
+    local newRightWingTransform = Math.RotateAround(self.rightWingTransform, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
     SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
     SetShapeLocalTransform(self.rightWing, newRightWingTransform)
 
     -- TODO update movement
     -- Parameters
-    local THRUST = 800
+    local THRUST = 40000
     local AIR_DENSITY = 1.22 -- TODO min max
+
+    local BODY_AREA = 1.08
+    local BODY_DRAG_COEFFICIENT = 0.3
+
+    local WINGS_AREA = 5.0
+    local WINGS_DRAG_COEFFICIENT = 0.03
+    local WINGS_INDUCED_DRAG = 0.08
+
+    local LIFT_COEFFICIENT_ALPHA = 10.5
+    local LIFT_COEFFICIENT_MAX = 10.2
 
     -- State
     local propulsion = 1.0 -- [0, 1]
     local wingsSpreading = 1.0 -- [0, 1]
 
     -- Calculated
-    local velocityVec = VecNormalize(self.velocity)
-    local minusVelocityVec = VecScale(velocityVec, -1)
-    local velocity = VecLength(self.velocity)
+    local velocityDir, velocity = Math.VecNormalizeSafe(self.velocity)
     local dynamicPressure = 0.5 * AIR_DENSITY * velocity * velocity
+
+    local forwardVelocity = VecDot(self.velocity, self.forward)
+    local upVelocity = VecDot(self.velocity, self.up)
+    local angleOfAttack = math.atan2(-upVelocity, forwardVelocity) -- radians
+
+    local liftCoefficient = Math.clamp(LIFT_COEFFICIENT_ALPHA * angleOfAttack, -LIFT_COEFFICIENT_MAX, LIFT_COEFFICIENT_MAX) -- TODO -pi; pi - min max
+    local liftDir, liftLength = Math.VecNormalizeSafe(Math.VecOrthogonalize(self.up, velocityDir))
+
 
     -- Forces
     local newPosition = self.transform.pos
 
     local fGravity = VecScale(GetGravity(), Missile.MASS)
     local fThrust = VecScale(self.forward, THRUST * propulsion)
-    local fDragBody = VecScale(minusVelocityVec, dynamicPressure) -- TODO multiply by: cross-sectional area * drag coefficient for body shape
-    local fDragWings = VecScale(minusVelocityVec, dynamicPressure * wingsSpreading) -- TODO multiply by: cross-sectional area * drag coefficient for wings shape
-    local fLift = VecScale(self.up, dynamicPressure * wingsSpreading) -- TODO multiply by: cross-sectional area * lift coefficient, ANGLE OF ATTACK
+    local fDragBody = VecScale(velocityDir, -dynamicPressure * BODY_AREA * BODY_DRAG_COEFFICIENT)
+    local fDragWings = VecScale(velocityDir, -dynamicPressure * wingsSpreading * WINGS_AREA * (WINGS_DRAG_COEFFICIENT + WINGS_INDUCED_DRAG * liftCoefficient * liftCoefficient))
+    local fLift = VecScale(liftDir, dynamicPressure * WINGS_AREA * liftCoefficient * wingsSpreading)
 
-    local forces = Math.VecAdd(fGravity, fThrust, fDragBody, fDragWings)
-    DebugPrint(forces)
+    local forces = Math.VecAdd(fGravity, fThrust, fDragBody, fDragWings, fLift)
 
     -- Integrate
     local acceleration = VecScale(forces, 1 / Missile.MASS)
@@ -137,6 +152,14 @@ if not Missile then
     self.transform.pos = newPosition
     self.forward = QuatRotateVec(self.transform.rot, Vec(0, 0, -1))
     self.up = QuatRotateVec(self.transform.rot, Vec(0, 1, 0))
+
+    DebugPrint()
+    DebugPrint("Forces: ")
+    DebugPrint(forces)
+    DebugPrint("Velocity: ")
+    DebugPrint(self.velocity)
+    DebugPrint("Position: ")
+    DebugPrint(self.transform.pos)
 
     -- Apply transform
     SetBodyTransform(self.entities[1], self.transform)
@@ -207,11 +230,11 @@ if not Missile then
         self.wingsState = Missile.WingsState.SPREAD
       else
         -- Apply easing here
-        self.wingsSpreading = Math:easeOutElastic(self.wingsStateProgress)
+        self.wingsSpreading = Math.easeOutElastic(self.wingsStateProgress)
       end
 
       -- Update rotation
-      self.wingsRotation = Math:lerp(Missile.WINGS_FOLDED_ROTATION, Missile.WINGS_SPREAD_ROTATION, self.wingsSpreading)
+      self.wingsRotation = Math.lerp(Missile.WINGS_FOLDED_ROTATION, Missile.WINGS_SPREAD_ROTATION, self.wingsSpreading)
     elseif self.wingsState == Missile.WingsState.FOLDING then
       -- Folding
       self.wingsStateProgress = self.wingsStateProgress + deltaTime / Missile.WINGS_FOLDING_TIME
@@ -227,7 +250,7 @@ if not Missile then
       end
 
       -- Update rotation
-      self.wingsRotation = Math:lerp(Missile.WINGS_FOLDED_ROTATION, Missile.WINGS_SPREAD_ROTATION, self.wingsSpreading)
+      self.wingsRotation = Math.lerp(Missile.WINGS_FOLDED_ROTATION, Missile.WINGS_SPREAD_ROTATION, self.wingsSpreading)
     end
   end
 

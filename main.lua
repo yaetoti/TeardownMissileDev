@@ -52,7 +52,7 @@ function server.createMissileServerRpc(clientId)
 
   -- Create missile
   local missile, missileId = server.createMissile()
-  missile:spawn(Transform(Vec(0, 20, missileId * 6)))
+  missile:spawn(Transform(Vec(0, 80, 1000 + missileId * 6)))
   missile:spreadWings()
 
   -- Update status
