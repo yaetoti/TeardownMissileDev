@@ -52,7 +52,7 @@ function server.createMissileServerRpc(clientId)
 
   -- Create missile
   local missile, missileId = server.createMissile()
-  missile:spawn(Transform(Vec(0, 2, missileId * 6)))
+  missile:spawn(Transform(Vec(0, 20, missileId * 6)))
   missile:spreadWings()
 
   -- Update status
@@ -222,6 +222,12 @@ function server.tick(deltaTime)
   for _, missileId in ipairs(markedForDestruction) do
     server.missiles[missileId] = nil
   end
+
+
+  -- TODO Investigate
+  --- Missile Falling
+  --- Nose down
+  --- Fov change when changing speed
 end
 
 function server.destroy()

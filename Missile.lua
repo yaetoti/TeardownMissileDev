@@ -22,6 +22,7 @@ if not Missile then
   Missile.EXPLOSION_STRENGTH = 4.0
   Missile.NOSE_OFFSET = Vec(0, 0, -2.5)
   Missile.CAMERA_OFFSET = Vec(0, 1, 6.0)
+  Missile.MASS = 1
 
   function Missile.new()
     local obj = {
@@ -42,7 +43,12 @@ if not Missile then
       wingsState = Missile.WingsState.FOLDED,
 
       exploded = false,
-      transform = Transform()
+      transform = Transform(),
+      forward = Vec(0, 0, -1),
+      up = Vec(0, 1, 0),
+
+      -- TODO new
+      velocity = Vec(),
     }
 
     return setmetatable(obj, Missile)
@@ -59,6 +65,8 @@ if not Missile then
     end
 
     self.transform = transform
+    self.forward = QuatRotateVec(self.transform.rot, Vec(0, 0, -1))
+    self.up = QuatRotateVec(self.transform.rot, Vec(0, 1, 0))
 
     self.entities = Spawn("MOD/vox/Missile.xml", self.transform)
     self.leftWing = self.entities[8]
@@ -94,6 +102,43 @@ if not Missile then
     SetShapeLocalTransform(self.rightWing, newRightWingTransform)
 
     -- TODO update movement
+    -- Parameters
+    local THRUST = 800
+    local AIR_DENSITY = 1.22 -- TODO min max
+
+    -- State
+    local propulsion = 1.0 -- [0, 1]
+    local wingsSpreading = 1.0 -- [0, 1]
+
+    -- Calculated
+    local velocityVec = VecNormalize(self.velocity)
+    local minusVelocityVec = VecScale(velocityVec, -1)
+    local velocity = VecLength(self.velocity)
+    local dynamicPressure = 0.5 * AIR_DENSITY * velocity * velocity
+
+    -- Forces
+    local newPosition = self.transform.pos
+
+    local fGravity = VecScale(GetGravity(), Missile.MASS)
+    local fThrust = VecScale(self.forward, THRUST * propulsion)
+    local fDragBody = VecScale(minusVelocityVec, dynamicPressure) -- TODO multiply by: cross-sectional area * drag coefficient for body shape
+    local fDragWings = VecScale(minusVelocityVec, dynamicPressure * wingsSpreading) -- TODO multiply by: cross-sectional area * drag coefficient for wings shape
+    local fLift = VecScale(self.up, dynamicPressure * wingsSpreading) -- TODO multiply by: cross-sectional area * lift coefficient, ANGLE OF ATTACK
+
+    local forces = Math.VecAdd(fGravity, fThrust, fDragBody, fDragWings)
+    DebugPrint(forces)
+
+    -- Integrate
+    local acceleration = VecScale(forces, 1 / Missile.MASS)
+    self.velocity = VecAdd(self.velocity, VecScale(acceleration, deltaTime))
+    newPosition = VecAdd(newPosition, VecScale(self.velocity, deltaTime))
+
+    -- Update transform
+    self.transform.pos = newPosition
+    self.forward = QuatRotateVec(self.transform.rot, Vec(0, 0, -1))
+    self.up = QuatRotateVec(self.transform.rot, Vec(0, 1, 0))
+
+    -- Apply transform
     SetBodyTransform(self.entities[1], self.transform)
   end
 

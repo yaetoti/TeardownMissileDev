@@ -5,6 +5,19 @@
 if not Math then
   Math = {}
 
+  function Math.VecAdd(...)
+    local vecs = { ... }
+    local x, y, z = 0, 0, 0
+
+    for _, vec in ipairs(vecs) do
+      x = x + vec[1]
+      y = y + vec[2]
+      z = z + vec[3]
+    end
+
+    return Vec(x, y, z)
+  end
+
   function Math:lerp(a, b, t)
     return a + (b - a) * t
   end
