@@ -109,10 +109,19 @@ if not Math then
   ---@param transform Transform Transform to rotate
   ---@param pivot Vec Pivot point
   ---@param rotation Quat Rotation to apply to the transform
-  function Math.RotateAround(transform, pivot, rotation)
+  function Math.RotateTransformAround(transform, pivot, rotation)
     local relative = VecSub(transform.pos, pivot)
     local newPos = VecAdd(pivot, QuatRotateVec(rotation, relative))
     local newRot = QuatRotateQuat(rotation, transform.rot)
     return Transform(newPos, newRot)
+  end
+
+  ---Rotates point around a pivot point
+  ---@param point Vec Point to rotate
+  ---@param pivot Vec Pivot point
+  ---@param rotation Quat Rotation
+  function Math.RotateAround(point, pivot, rotation)
+    local relative = VecSub(point, pivot)
+    return VecAdd(pivot, QuatRotateVec(rotation, relative))
   end
 end

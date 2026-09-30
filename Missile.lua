@@ -96,8 +96,8 @@ if not Missile then
 
     -- Update wings
     self:_updateWingsSpreading(deltaTime)
-    local newLeftWingTransform = Math.RotateAround(self.leftWingTransform, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
-    local newRightWingTransform = Math.RotateAround(self.rightWingTransform, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
+    local newLeftWingTransform = Math.RotateTransformAround(self.leftWingTransform, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
+    local newRightWingTransform = Math.RotateTransformAround(self.rightWingTransform, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
     SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
     SetShapeLocalTransform(self.rightWing, newRightWingTransform)
 
@@ -109,16 +109,16 @@ if not Missile then
     local BODY_AREA = 1.08
     local BODY_DRAG_COEFFICIENT = 0.3
 
-    local WINGS_AREA = 5.0
+    local WINGS_AREA = 10.0
     local WINGS_DRAG_COEFFICIENT = 0.03
     local WINGS_INDUCED_DRAG = 0.08
 
-    local LIFT_COEFFICIENT_ALPHA = 10.5
-    local LIFT_COEFFICIENT_MAX = 10.2
+    local LIFT_COEFFICIENT_ALPHA = 5.5
+    local LIFT_COEFFICIENT_MAX = 1.5
 
     -- State
     local propulsion = 1.0 -- [0, 1]
-    local wingsSpreading = 1.0 -- [0, 1]
+    local wingsSpreading = self.wingsSpreading -- [0, 1]
 
     -- Calculated
     local velocityDir, velocity = Math.VecNormalizeSafe(self.velocity)

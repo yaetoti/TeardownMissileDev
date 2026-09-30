@@ -53,7 +53,7 @@ function server.createMissileServerRpc(clientId)
   -- Create missile
   local missile, missileId = server.createMissile()
   missile:spawn(Transform(Vec(0, 80, 1000 + missileId * 6)))
-  missile:spreadWings()
+  --missile:spreadWings()
 
   -- Update status
   player.isControllingMissile = true
@@ -125,6 +125,30 @@ end
 
 
 
+function client.ToggleWingsDeploymentServerRpc()
+  if not client.isControllingMissile or not IsHandleValid(client.missileBody) then
+    return
+  end
+
+  ServerCall("server.ToggleWingsDeploymentServerRpc", GetLocalPlayer(), client.missileId)
+end
+
+function server.ToggleWingsDeploymentServerRpc(clientId, missileId)
+  local player = server.players[clientId]
+  if not player.isControllingMissile or player.controlledMissileId ~= missileId then
+    return
+  end
+
+  local missile = server.missiles[missileId]
+  if missile.wingsState == Missile.WingsState.FOLDED or missile.wingsState == Missile.WingsState.FOLDING then
+    missile:spreadWings()
+  elseif missile.wingsState == Missile.WingsState.SPREAD or missile.wingsState == Missile.WingsState.SPREADING then
+    missile:foldWings()
+  end
+end
+
+
+
 -- Client
 
 function client.init()
@@ -157,23 +181,34 @@ end
 
 function client.tick(deltaTime)
   -- Handle input
-  if InputPressed("lmb") and GetPlayerTool() == ToolTabletId then
-    -- Create missile
-    if not client.isControllingMissile and not client.activeRequests.createMissile then
-      client.createMissileServerRpc()
+  if GetPlayerTool() == ToolTabletId then
+    if InputPressed("lmb") then
+      -- Create missile
+      if not client.isControllingMissile and not client.activeRequests.createMissile then
+        client.createMissileServerRpc()
+      end
+
+      -- Explode missile
+      if client.isControllingMissile and not client.activeRequests.explodeMissile then
+        client.explodeMissileServerRpc(client.missileId)
+      end
     end
 
-    -- Explode missile
-    if client.isControllingMissile and not client.activeRequests.explodeMissile then
-      client.explodeMissileServerRpc(client.missileId)
+    if InputPressed("space") then
+      client.ToggleWingsDeploymentServerRpc()
     end
   end
 
   if client.isControllingMissile and IsHandleValid(client.missileBody) then
     -- Handle camera
+    local cameraTransform = GetCameraTransform()
     local missileTransform = GetBodyTransform(client.missileBody)
     local cameraPos = TransformToParentPoint(missileTransform, Missile.CAMERA_OFFSET)
-    local cameraRot = missileTransform.rot
+    --local cameraRot = missileTransform.rot
+
+    local cameraRot = cameraTransform.rot
+    cameraPos = Math.RotateAround(cameraPos, missileTransform.pos, cameraRot)
+    cameraOffset = VecSub(cameraPos, cameraTransform.pos)
 
     SetCameraTransform(Transform(cameraPos, cameraRot))
   end
