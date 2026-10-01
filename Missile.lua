@@ -85,8 +85,8 @@ if not Missile then
     SetShapeLocalTransform(self.rightWing, self.rightWingTransform)
 
     -- Pivot (center + 3 from wing base)
-    self.leftWingPivot = Vec(0.5 * leftWingSizeX * leftWingScale, 0, -3 * leftWingScale)
-    self.rightWingPivot = Vec(-0.5 * rightWingSizeX * rightWingScale, 0, -3 * rightWingScale)
+    self.leftWingPivot = Vec(-0.5 * leftWingSizeX * leftWingScale, 0, -10 * leftWingScale)
+    self.rightWingPivot = Vec(0.5 * rightWingSizeX * rightWingScale, 0, -10 * rightWingScale)
   end
 
   function Missile:update(deltaTime)
