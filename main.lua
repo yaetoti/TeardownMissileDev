@@ -36,23 +36,19 @@ function client.createMissileServerRpc()
 
   client.activeRequests.createMissile = true
   ServerCall("server.createMissileServerRpc", GetLocalPlayer())
-  -- TODO remove debug message
-  DebugPrint("Request sent")
 end
 
 function server.createMissileServerRpc(clientId)
-  DebugPrint("Request got")
   local player = server.players[clientId]
   if not player or player.isControllingMissile then
     -- Reject
-    DebugPrint("Rejected")
     server.createMissileResponseClientRpc(clientId, false)
     return
   end
 
   -- Create missile
   local missile, missileId = server.createMissile()
-  missile:spawn(Transform(Vec(0, 80, 1000 + missileId * 6)))
+  missile:spawn(Transform(Vec(0, 80, 500 + missileId * 6)))
   --missile:spreadWings()
 
   -- Update status
@@ -60,7 +56,6 @@ function server.createMissileServerRpc(clientId)
   player.controlledMissileId = missileId
 
   -- Send confirmation and body
-  DebugPrint("Created")
   server.createMissileResponseClientRpc(clientId, true, missileId, missile.entities[1])
 end
 
@@ -149,6 +144,27 @@ end
 
 
 
+function client.SetInputServerRpc(pitchInput, yawInput, rollInput)
+  if not client.isControllingMissile then
+    return
+  end
+
+  ServerCall("server.SetInputServerRpc", GetLocalPlayer(), client.missileId, pitchInput, yawInput, rollInput)
+end
+
+function server.SetInputServerRpc(clientId, missileId, pitchInput, yawInput, rollInput)
+  local player = server.players[clientId]
+  if not player.isControllingMissile or player.controlledMissileId ~= missileId then
+    return
+  end
+
+  local missile = server.missiles[missileId]
+  missile.pitchInput = pitchInput
+  missile.yawInput = yawInput
+  missile.rollInput = rollInput
+end
+
+
 -- Client
 
 function client.init()
@@ -197,6 +213,27 @@ function client.tick(deltaTime)
     if InputPressed("space") then
       client.ToggleWingsDeploymentServerRpc()
     end
+
+    -- Input
+    local pitchInput = 0.0
+    local yawInput = 0.0
+    local rollInput = 0.0
+
+    if (InputDown("a")) then
+      rollInput = rollInput - 1.0
+    end
+    if (InputDown("d")) then
+      rollInput = rollInput + 1.0
+    end
+
+    local cameraX = InputValue("camerax")
+    local cameraY = InputValue("cameray")
+    pitchInput = -cameraY
+    yawInput = -cameraX
+
+    DebugPrint(pitchInput, yawInput, rollInput)
+
+    client.SetInputServerRpc(pitchInput, yawInput, rollInput)
   end
 
   if client.isControllingMissile and IsHandleValid(client.missileBody) then
@@ -204,11 +241,11 @@ function client.tick(deltaTime)
     local cameraTransform = GetCameraTransform()
     local missileTransform = GetBodyTransform(client.missileBody)
     local cameraPos = TransformToParentPoint(missileTransform, Missile.CAMERA_OFFSET)
-    --local cameraRot = missileTransform.rot
 
     local cameraRot = cameraTransform.rot
-    cameraPos = Math.RotateAround(cameraPos, missileTransform.pos, cameraRot)
-    cameraOffset = VecSub(cameraPos, cameraTransform.pos)
+    cameraRot = missileTransform.rot
+
+    --cameraPos = Math.RotateAround(cameraPos, missileTransform.pos, cameraRot)
 
     SetCameraTransform(Transform(cameraPos, cameraRot))
   end

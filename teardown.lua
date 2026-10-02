@@ -138,6 +138,12 @@ function QuatDeltaVectors(vector0, vector1) end
 ---@return number, number, number X, Y, Z
 function GetQuatEuler(quat) end
 
+---Create a quaternion representing a rotation around a specific axis
+---@param axis Vec Rotation axis, unit vector
+---@param angle number Rotation angle in degrees
+---@return Quat New quaternion
+function QuatAxisAngle(axis, angle) end
+
 
 
 ---Create a new transform. If only one argument is provided, it assumes no rotation (identity quaternion).

@@ -22,7 +22,7 @@ if not Missile then
   Missile.EXPLOSION_STRENGTH = 4.0
   Missile.NOSE_OFFSET = Vec(0, 0, -2.5)
   Missile.CAMERA_OFFSET = Vec(0, 1, 6.0)
-  Missile.MASS = 1000
+  Missile.MASS = 800
 
   function Missile.new()
     local obj = {
@@ -34,6 +34,7 @@ if not Missile then
       rightWing = nil,
       leftWingTransform = nil,
       rightWingTransform = nil,
+      wingsOffsetZ = 0.0,
 
       -- State
       wingsRotation = Missile.WINGS_FOLDED_ROTATION,
@@ -46,9 +47,15 @@ if not Missile then
       transform = Transform(),
       forward = Vec(0, 0, -1),
       up = Vec(0, 1, 0),
+      right = Vec(1, 0, 0),
 
       -- TODO new
       velocity = Vec(),
+      angularVelocity = Vec(),
+
+      pitchInput = 0.0,
+      yawInput = 0.0,
+      rollInput = 0.0,
     }
 
     return setmetatable(obj, Missile)
@@ -67,6 +74,7 @@ if not Missile then
     self.transform = transform
     self.forward = QuatRotateVec(self.transform.rot, Vec(0, 0, -1))
     self.up = QuatRotateVec(self.transform.rot, Vec(0, 1, 0))
+    self.right = QuatRotateVec(self.transform.rot, Vec(1, 0, 0))
 
     self.entities = Spawn("MOD/vox/Missile.xml", self.transform)
     self.leftWing = self.entities[8]
@@ -78,6 +86,7 @@ if not Missile then
     local leftWingSizeX, leftWingSizeY, leftWingSizeZ, leftWingScale = GetShapeSize(self.leftWing)
     local rightWingSizeX, rightWingSizeY, rightWingSizeZ, rightWingScale = GetShapeSize(self.rightWing)
     local verticalOffset = -2.5
+    self.wingsOffsetZ = verticalOffset * leftWingScale
 
     self.leftWingTransform.pos = VecAdd(self.leftWingTransform.pos, Vec(0, verticalOffset * leftWingScale, 0))
     self.rightWingTransform.pos = VecAdd(self.rightWingTransform.pos, Vec(0, verticalOffset * rightWingScale, 0))
@@ -102,11 +111,13 @@ if not Missile then
     SetShapeLocalTransform(self.rightWing, newRightWingTransform)
 
     -- TODO update movement
+    local newPosition = self.transform.pos
+
     -- Parameters
-    local THRUST = 40000
+    local THRUST = 20000
     local AIR_DENSITY = 1.22 -- TODO min max
 
-    local BODY_AREA = 1.08
+    local BODY_AREA = 8.08
     local BODY_DRAG_COEFFICIENT = 0.3
 
     local WINGS_AREA = 10.0
@@ -116,11 +127,30 @@ if not Missile then
     local LIFT_COEFFICIENT_ALPHA = 5.5
     local LIFT_COEFFICIENT_MAX = 1.5
 
-    -- State
+    -- Rotational Parameters
+    local INERTIA_X = 4000.0
+    local INERTIA_Y = 4000.0
+    local INERTIA_Z = 1000.0
+
+    local PITCH_TORQUE = 80000.0
+    local YAW_TORQUE = 80000.0
+    local ROLL_TORQUE = 15000.0
+
+    local PITCH_DAMPING = 10000.0
+    local YAW_DAMPING = 10000.0
+    local ROLL_DAMPING = 3000.0
+
+    --local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, self.wingsOffsetZ)
+    local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, 0)
+
+    -- Input (TODO mapping?)
     local propulsion = 1.0 -- [0, 1]
     local wingsSpreading = self.wingsSpreading -- [0, 1]
+    local pitchInput = self.pitchInput -- [-1, 1]
+    local yawInput = self.yawInput -- [-1, 1]
+    local rollInput = self.rollInput -- [-1, 1]
 
-    -- Calculated
+    -- Calculated (Linear)
     local velocityDir, velocity = Math.VecNormalizeSafe(self.velocity)
     local dynamicPressure = 0.5 * AIR_DENSITY * velocity * velocity
 
@@ -131,10 +161,10 @@ if not Missile then
     local liftCoefficient = Math.clamp(LIFT_COEFFICIENT_ALPHA * angleOfAttack, -LIFT_COEFFICIENT_MAX, LIFT_COEFFICIENT_MAX) -- TODO -pi; pi - min max
     local liftDir, liftLength = Math.VecNormalizeSafe(Math.VecOrthogonalize(self.up, velocityDir))
 
+    -- Calculated (Rotational)
 
-    -- Forces
-    local newPosition = self.transform.pos
 
+    -- Forces (Linear)
     local fGravity = VecScale(GetGravity(), Missile.MASS)
     local fThrust = VecScale(self.forward, THRUST * propulsion)
     local fDragBody = VecScale(velocityDir, -dynamicPressure * BODY_AREA * BODY_DRAG_COEFFICIENT)
@@ -142,6 +172,64 @@ if not Missile then
     local fLift = VecScale(liftDir, dynamicPressure * WINGS_AREA * liftCoefficient * wingsSpreading)
 
     local forces = Math.VecAdd(fGravity, fThrust, fDragBody, fDragWings, fLift)
+
+    -- Forces (Rotational)
+    local angularMomentum = Vec(
+        INERTIA_X * self.angularVelocity[1],
+        INERTIA_Y * self.angularVelocity[2],
+        INERTIA_Z * self.angularVelocity[3]
+    )
+    local gyroTorque = VecCross(self.angularVelocity, angularMomentum)
+    local tauControl = Math.VecAdd(
+        VecScale(self.right, PITCH_TORQUE * pitchInput),
+        VecScale(self.up, YAW_TORQUE * yawInput),
+        VecScale(self.forward, ROLL_TORQUE * rollInput)
+    )
+
+    local fLiftBody = Vec(
+      VecDot(fLift, self.right),
+      VecDot(fLift, self.up),
+      VecDot(fLift, VecScale(self.forward, -1))
+    )
+    local tauLiftBody = VecCross(WINGS_CENTER_OF_PRESSURE, fLiftBody)
+    local tauDampingBody = Vec(
+        -self.angularVelocity[1] * PITCH_DAMPING,
+        -self.angularVelocity[2] * YAW_DAMPING,
+        -self.angularVelocity[3] * ROLL_DAMPING
+    )
+
+    --tauLiftBody = Vec()
+    --gyroTorque = Vec()
+
+    --local torque = Math.VecAdd(tauControl, tauLiftBody, tauDampingBody)
+    --local angularAcceleration = Vec(
+    --    ((torque[1] - gyroTorque[1]) / INERTIA_X),
+    --    ((torque[2] - gyroTorque[2]) / INERTIA_Y),
+    --    ((torque[3] - gyroTorque[3]) / INERTIA_Z)
+    --)
+
+    -- after you have built the world-space tauControl
+    local tauControlBody = TransformToLocalVec(self.transform, tauControl)
+    -- now everything is body-frame
+    local torque = Math.VecAdd(tauControlBody, tauLiftBody, tauDampingBody)
+    local angularAcceleration = Vec(
+        (torque[1] - gyroTorque[1]) / INERTIA_X,
+        (torque[2] - gyroTorque[2]) / INERTIA_Y,
+        (torque[3] - gyroTorque[3]) / INERTIA_Z
+    )
+
+    self.angularVelocity = VecAdd(self.angularVelocity, VecScale(angularAcceleration, deltaTime))
+
+    local angularSpeed = VecLength(self.angularVelocity)
+    if angularSpeed > Math.EPSILON then
+      local angularAxis = VecScale(self.angularVelocity, 1.0 / angularSpeed)
+      local angularDeltaDegrees = angularSpeed * deltaTime * 180.0 / math.pi
+      local deltaRotation = QuatAxisAngle(angularAxis, angularDeltaDegrees)
+      self.transform.rot = QuatRotateQuat(self.transform.rot, deltaRotation)
+    end
+
+
+
 
     -- Integrate
     local acceleration = VecScale(forces, 1 / Missile.MASS)
@@ -152,6 +240,7 @@ if not Missile then
     self.transform.pos = newPosition
     self.forward = QuatRotateVec(self.transform.rot, Vec(0, 0, -1))
     self.up = QuatRotateVec(self.transform.rot, Vec(0, 1, 0))
+    self.right = QuatRotateVec(self.transform.rot, Vec(1, 0, 0))
 
     DebugPrint()
     DebugPrint("Forces: ")
