@@ -4,10 +4,12 @@
 #include "Player.lua"
 
 -- TODO remove
-debugMissile = true
+debugMissile = false
 
 local time = 0
 local ToolTabletId = "tablet"
+
+local PropulsionChangeSpeed = 0.5
 
 client.activeRequests = {
   createMissile = false,
@@ -17,6 +19,9 @@ client.activeRequests = {
 client.isControllingMissile = false
 client.missileId = 0
 client.missileBody = 0
+
+-- TODO add client missile controller?
+client.propulsion = 0.0
 
 server.missiles = {}
 server.players = {}
@@ -152,15 +157,15 @@ end
 
 
 
-function client.SetInputServerRpc(pitchInput, yawInput, rollInput)
+function client.SetInputServerRpc(propulsion, pitchInput, yawInput, rollInput)
   if not client.isControllingMissile then
     return
   end
 
-  ServerCall("server.SetInputServerRpc", GetLocalPlayer(), client.missileId, pitchInput, yawInput, rollInput)
+  ServerCall("server.SetInputServerRpc", GetLocalPlayer(), client.missileId, propulsion, pitchInput, yawInput, rollInput)
 end
 
-function server.SetInputServerRpc(clientId, missileId, pitchInput, yawInput, rollInput)
+function server.SetInputServerRpc(clientId, missileId, propulsion, pitchInput, yawInput, rollInput)
   local player = server.players[clientId]
   if not player.isControllingMissile or player.controlledMissileId ~= missileId then
     return
@@ -170,6 +175,7 @@ function server.SetInputServerRpc(clientId, missileId, pitchInput, yawInput, rol
   missile.pitchInput = pitchInput
   missile.yawInput = yawInput
   missile.rollInput = rollInput
+  missile.propulsion = propulsion
 end
 
 
@@ -222,7 +228,18 @@ function client.tick(deltaTime)
       client.ToggleWingsDeploymentServerRpc()
     end
 
-    -- Input
+    -- Propulsion input
+    local propulsionInput = 0.0
+    if (InputDown("w")) then
+      propulsionInput = propulsionInput + 1.0
+    end
+    if (InputDown("s")) then
+      propulsionInput = propulsionInput - 1.0
+    end
+
+    client.propulsion = client.propulsion + propulsionInput * PropulsionChangeSpeed * deltaTime
+
+    -- Rotation input
     local pitchInput = 0.0
     local yawInput = 0.0
     local rollInput = 0.0
@@ -239,7 +256,7 @@ function client.tick(deltaTime)
     pitchInput = -cameraY
     yawInput = -cameraX
 
-    client.SetInputServerRpc(pitchInput, yawInput, rollInput)
+    client.SetInputServerRpc(client.propulsion, pitchInput, yawInput, rollInput)
   end
 
   if client.isControllingMissile and IsHandleValid(client.missileBody) and not debugMissile then
@@ -285,6 +302,13 @@ function server.tick(deltaTime)
     end
 
     server.players[playerId] = nil
+  end
+
+  -- Update players
+  for playerId, player in pairs(server.players) do
+    if player.isControllingMissile then
+      DisablePlayerInput(playerId)
+    end
   end
 
   -- Update missiles
