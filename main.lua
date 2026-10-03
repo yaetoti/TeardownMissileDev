@@ -171,6 +171,7 @@ function server.SetInputServerRpc(clientId, missileId, propulsion, pitchInput, y
     return
   end
 
+  -- TODO clamp, cannot trust client
   local missile = server.missiles[missileId]
   missile.pitchInput = pitchInput
   missile.yawInput = yawInput
@@ -237,7 +238,7 @@ function client.tick(deltaTime)
       propulsionInput = propulsionInput - 1.0
     end
 
-    client.propulsion = client.propulsion + propulsionInput * PropulsionChangeSpeed * deltaTime
+    client.propulsion = Math.clamp01(client.propulsion + propulsionInput * PropulsionChangeSpeed * deltaTime)
 
     -- Rotation input
     local pitchInput = 0.0
@@ -257,6 +258,9 @@ function client.tick(deltaTime)
     yawInput = -cameraX
 
     client.SetInputServerRpc(client.propulsion, pitchInput, yawInput, rollInput)
+
+    -- TODO Debug
+    DebugWatch("propulsion", client.propulsion)
   end
 
   if client.isControllingMissile and IsHandleValid(client.missileBody) and not debugMissile then

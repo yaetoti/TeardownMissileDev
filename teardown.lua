@@ -25,6 +25,14 @@ function DebugPrint(message, lineWrapping) end
 ---@param scale number __optional__ Length of the axis
 function DebugTransform(transform, scale) end
 
+---Show a named valued on screen for debug purposes. Up to 32 values can be shown simultaneously. Values updated the current frame are drawn opaque. Old values are drawn transparent in white.
+---The function will also recognize tables and convert them to strings automatically.
+---@param name string Name
+---@param value any Value
+---@param lineWrapping boolean __optional__ True if you need to wrap Table lines. Works only with tables.
+function DebugWatch(name, value, lineWrapping) end
+
+
 
 
 ---Create new vector and optionally initializes it to the provided values. A Vec is equivalent to a regular lua table with three numbers.
