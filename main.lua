@@ -231,8 +231,6 @@ function client.tick(deltaTime)
     pitchInput = -cameraY
     yawInput = -cameraX
 
-    DebugPrint(pitchInput, yawInput, rollInput)
-
     client.SetInputServerRpc(pitchInput, yawInput, rollInput)
   end
 

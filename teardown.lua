@@ -20,6 +20,11 @@
 ---@param lineWrapping boolean True if you need to wrap Table lines. Works only with tables (optional)
 function DebugPrint(message, lineWrapping) end
 
+---Draw the axis of the transform
+---@param transform Transform The transform
+---@param scale number __optional__ Length of the axis
+function DebugTransform(transform, scale) end
+
 
 
 ---Create new vector and optionally initializes it to the provided values. A Vec is equivalent to a regular lua table with three numbers.

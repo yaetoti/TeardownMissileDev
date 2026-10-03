@@ -218,20 +218,17 @@ if not Missile then
         (torque[3] - gyroTorque[3]) / INERTIA_Z
     )
 
+    -- Integrate (Rotational)
     self.angularVelocity = VecAdd(self.angularVelocity, VecScale(angularAcceleration, deltaTime))
 
-    local angularSpeed = VecLength(self.angularVelocity)
+    local angularAxis, angularSpeed = Math.VecNormalizeSafe(self.angularVelocity)
     if angularSpeed > Math.EPSILON then
-      local angularAxis = VecScale(self.angularVelocity, 1.0 / angularSpeed)
       local angularDeltaDegrees = angularSpeed * deltaTime * 180.0 / math.pi
       local deltaRotation = QuatAxisAngle(angularAxis, angularDeltaDegrees)
       self.transform.rot = QuatRotateQuat(self.transform.rot, deltaRotation)
     end
 
-
-
-
-    -- Integrate
+    -- Integrate (Linear)
     local acceleration = VecScale(forces, 1 / Missile.MASS)
     self.velocity = VecAdd(self.velocity, VecScale(acceleration, deltaTime))
     newPosition = VecAdd(newPosition, VecScale(self.velocity, deltaTime))
@@ -242,16 +239,10 @@ if not Missile then
     self.up = QuatRotateVec(self.transform.rot, Vec(0, 1, 0))
     self.right = QuatRotateVec(self.transform.rot, Vec(1, 0, 0))
 
-    DebugPrint()
-    DebugPrint("Forces: ")
-    DebugPrint(forces)
-    DebugPrint("Velocity: ")
-    DebugPrint(self.velocity)
-    DebugPrint("Position: ")
-    DebugPrint(self.transform.pos)
-
     -- Apply transform
     SetBodyTransform(self.entities[1], self.transform)
+
+    DebugTransform(self.transform, 1.0)
   end
 
   function Missile:spreadWings()
