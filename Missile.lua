@@ -3,6 +3,7 @@
 #include "SoundManager.lua"
 
 -- Missile is facing in the -Z direction
+-- LOG: Tried +Z, but it's easier to remember that forward is at negative direction, than that right is left. Camera is also looking at -Z, so with +Z I'd have to invert the body transform
 
 if not Missile then
   Missile = {}
@@ -45,9 +46,9 @@ if not Missile then
 
       exploded = false,
       transform = Transform(),
-      forward = Vec(0, 0, -1),
-      up = Vec(0, 1, 0),
-      right = Vec(1, 0, 0),
+      right = Math.RIGHT,
+      up = Math.UP,
+      forward = Math.FORWARD,
 
       -- TODO new
       velocity = Vec(),
@@ -72,9 +73,9 @@ if not Missile then
     end
 
     self.transform = transform
-    self.forward = QuatRotateVec(self.transform.rot, Vec(0, 0, -1))
-    self.up = QuatRotateVec(self.transform.rot, Vec(0, 1, 0))
-    self.right = QuatRotateVec(self.transform.rot, Vec(1, 0, 0))
+    self.right = QuatRotateVec(self.transform.rot, Math.RIGHT)
+    self.up = QuatRotateVec(self.transform.rot, Math.UP)
+    self.forward = QuatRotateVec(self.transform.rot, Math.FORWARD)
 
     self.entities = Spawn("MOD/vox/Missile.xml", self.transform)
     self.leftWing = self.entities[8]
@@ -235,14 +236,14 @@ if not Missile then
 
     -- Update transform
     self.transform.pos = newPosition
-    self.forward = QuatRotateVec(self.transform.rot, Vec(0, 0, -1))
-    self.up = QuatRotateVec(self.transform.rot, Vec(0, 1, 0))
-    self.right = QuatRotateVec(self.transform.rot, Vec(1, 0, 0))
+    self.right = QuatRotateVec(self.transform.rot, Math.RIGHT)
+    self.up = QuatRotateVec(self.transform.rot, Math.UP)
+    self.forward = QuatRotateVec(self.transform.rot, Math.FORWARD)
 
     -- Apply transform
     SetBodyTransform(self.entities[1], self.transform)
 
-    DebugTransform(self.transform, 1.0)
+    DebugTransform(self.transform, 3.0)
   end
 
   function Missile:spreadWings()

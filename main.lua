@@ -3,6 +3,9 @@
 #include "SoundManager.lua"
 #include "Player.lua"
 
+-- TODO remove
+debugMissile = true
+
 local time = 0
 local ToolTabletId = "tablet"
 
@@ -48,7 +51,12 @@ function server.createMissileServerRpc(clientId)
 
   -- Create missile
   local missile, missileId = server.createMissile()
-  missile:spawn(Transform(Vec(0, 80, 500 + missileId * 6)))
+  if debugMissile then
+    missile:spawn(Transform(Vec(0, 2, 6)))
+  else
+    missile:spawn(Transform(Vec(0, 80, 500 + missileId * 6)))
+  end
+
   --missile:spreadWings()
 
   -- Update status
@@ -234,7 +242,7 @@ function client.tick(deltaTime)
     client.SetInputServerRpc(pitchInput, yawInput, rollInput)
   end
 
-  if client.isControllingMissile and IsHandleValid(client.missileBody) then
+  if client.isControllingMissile and IsHandleValid(client.missileBody) and not debugMissile then
     -- Handle camera
     local cameraTransform = GetCameraTransform()
     local missileTransform = GetBodyTransform(client.missileBody)

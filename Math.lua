@@ -5,6 +5,9 @@
 if not Math then
   Math = {}
   Math.EPSILON = 0.000001
+  Math.RIGHT = Vec(1, 0, 0)
+  Math.UP = Vec(0, 1, 0)
+  Math.FORWARD = Vec(0, 0, -1)
 
   ---@return Vec component of v1, perpendicular to v2
   function Math.VecOrthogonalize(v1, v2)
