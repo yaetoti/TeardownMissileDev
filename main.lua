@@ -5,6 +5,7 @@
 
 -- TODO remove
 debugMissile = false
+debugDetach = false
 
 local time = 0
 local ToolTabletId = "tablet"
@@ -229,6 +230,10 @@ function client.tick(deltaTime)
       client.ToggleWingsDeploymentServerRpc()
     end
 
+    if InputPressed("rmb") then
+      debugDetach = not debugDetach
+    end
+
     -- Propulsion input
     local propulsionInput = 0.0
     if (InputDown("w")) then
@@ -260,7 +265,7 @@ function client.tick(deltaTime)
     client.SetInputServerRpc(client.propulsion, pitchInput, yawInput, rollInput)
   end
 
-  if client.isControllingMissile and IsHandleValid(client.missileBody) and not debugMissile then
+  if not debugDetach and client.isControllingMissile and IsHandleValid(client.missileBody) and not debugMissile then
     -- Handle camera
     local cameraTransform = GetCameraTransform()
     local missileTransform = GetBodyTransform(client.missileBody)

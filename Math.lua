@@ -162,6 +162,7 @@ if not Vec3 then
     end
   end
 
+  ---@return Vec3 New vector
   function Vec3.new(x, y, z)
     local obj = {
       x or 0,
@@ -171,6 +172,7 @@ if not Vec3 then
     return setmetatable(obj, Vec3)
   end
 
+  ---@return Vec3 New vector
   function Vec3.from(v)
     return Vec3.new(v[1], v[2], v[3])
   end
@@ -251,6 +253,14 @@ if not Vec3 then
     return Vec3.new(self[1], self[2], self[3])
   end
 
+  function Vec3:with(x, y, z)
+    return Vec3.new(
+      x or self.x,
+      y or self.y,
+      z or self.z
+    )
+  end
+
   function Vec3:toVec()
     return Vec(self[1], self[2], self[3])
   end
@@ -284,10 +294,23 @@ if not Vec3 then
     )
   end
 
+  ---Project vector onto another vector
+  ---@param v Vec3
+  ---@return Vec3
   function Vec3:project(v)
     return v * self:dot(v)
   end
 
+  ---Project vector onto a plane
+  ---@param n Vec3 Plane normal
+  ---@return Vec3
+  function Vec3:projectPlane(n)
+    -- remove orthogonal component
+    return self - self:project(n)
+  end
+
+  ---@param v Vec3
+  ---@return Vec3 Component of vector, perpendicular to vector v
   function Vec3:orthogonalize(v)
     return self - self:project(v)
   end
@@ -300,12 +323,14 @@ if not Vec3 then
     return math.acos(self:dot(v))
   end
 
-  function Vec3:anglePlane(v)
-    return math.asin(self:normalize():dot(v:normalize()))
+  function Vec3:anglePlane(n)
+    return math.asin(self:normalize():dot(n:normalize()))
   end
 
-  function Vec3:anglePlaneUnsafe(v)
-    return math.asin(self:dot(v))
+  ---@param n Vec3 plane normal
+  ---@return number Angle between vector and plane (radians)
+  function Vec3:anglePlaneUnsafe(n)
+    return math.asin(self:dot(n))
   end
 
   ---Transforms vector into basis. Assumes that basis vectors are orthogonal
@@ -330,6 +355,11 @@ if not Vec3 then
       self[1] * right[2] + self[2] * up[2] + self[3] * forward[2],
       self[1] * right[3] + self[2] * up[3] + self[3] * forward[3]
     )
+  end
+
+  ---@param q Quat
+  function Vec3:rotate(q)
+    return Vec3.from(QuatRotateVec(q, self))
   end
 end
 

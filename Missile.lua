@@ -7,6 +7,9 @@
 -- LOG: Tried +Z, but it's easier to remember that forward is at negative direction, than that right is left. Camera is also looking at -Z, so with +Z I'd have to invert the body transform
 
 if not Missile then
+  ---@class Missile
+  ---@field velocity Vec3
+
   Missile = {}
   Missile.__index = Missile
 
@@ -77,9 +80,9 @@ if not Missile then
     end
 
     self.transform = transform
-    self.right = QuatRotateVec(self.transform.rot, Math.RIGHT)
-    self.up = QuatRotateVec(self.transform.rot, Math.UP)
-    self.forward = QuatRotateVec(self.transform.rot, Math.FORWARD)
+    self.right = Math.RIGHT:rotate(self.transform.rot)
+    self.up = Math.UP:rotate(self.transform.rot)
+    self.forward = Math.FORWARD:rotate(self.transform.rot)
 
     self.entities = Spawn("MOD/vox/Missile.xml", self.transform)
     self.leftWing = self.entities[8]
@@ -137,6 +140,8 @@ if not Missile then
     local LIFT_COEFFICIENT_ALPHA = 5.5
     local LIFT_COEFFICIENT_MAX = 1.5
 
+
+
     -- Rotational Parameters
     local INERTIA_X = 4000.0
     local INERTIA_Y = 4000.0
@@ -151,7 +156,7 @@ if not Missile then
     local ROLL_DAMPING = 3000.0
 
     --local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, self.wingsOffsetZ)
-    local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, 0)
+    --local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, 0)
 
     -- Input (TODO mapping? TODO enforce clamp TODO replace with self.var)
     local propulsion = self.propulsion -- [0, 1]
@@ -183,18 +188,22 @@ if not Missile then
     local fGravity = Vec3.from(GetGravity()) * Missile.MASS
 
     -- Thrust
-    --local fThrust = VecScale(self.forward, THRUST * propulsion)
+    local fThrust = THRUST * propulsion * self.forward
 
     -- Lift
-    local fLiftWingsDir = Math.VecNormalizeSafe(Math.VecOrthogonalize(Math.UP, VecScale(localVelocityDir, -1)))
-    local wingsAoA = -Math.VecPlaneAngleUnsafe(localVelocityDir, Math.UP)
+    local wingsLiftDir = Math.UP:orthogonalize(-localVelocityDir):normalize()
+
+    local wingsVelocityVec = localVelocityVec:with(0, nil, nil)
+    local wingsVelocityDir, wingsVelocity = wingsVelocityVec:normalize()
+    local wingsAoA = -wingsVelocityDir:anglePlane(Math.UP)
+
     local wingsCL = 0.5 * CL_ALPHA_WINGS * math.sin(2 * wingsAoA)
-    local fLiftWings = (0.5 * AIR_DENSITY * velocity * velocity) * AREA_WINGS_TOP * wingsCL * wingsSpreading * Vec3.from(fLiftWingsDir)
+    local fLiftWings = (0.5 * AIR_DENSITY * wingsVelocity * wingsVelocity) * AREA_WINGS_TOP * wingsCL * wingsSpreading * Vec3.from(wingsLiftDir)
 
     Debug.Vec(fLiftWings, self.transform.pos)
-    DebugWatch("Local velocity", localVelocityDir)
     DebugWatch("Angle of Attack", math.deg(wingsAoA))
-    DebugWatch("fLiftWingsDir", fLiftWingsDir)
+    DebugWatch("Local velocity", localVelocityDir)
+    DebugWatch("fLiftWingsDir", wingsLiftDir)
     DebugWatch("fLiftWings", fLiftWings)
 
     -- TODO Others
@@ -202,7 +211,8 @@ if not Missile then
     --local fDragWings = VecScale(velocityDir, -dynamicPressure * wingsSpreading * WINGS_AREA * (WINGS_DRAG_COEFFICIENT + WINGS_INDUCED_DRAG * liftCoefficient * liftCoefficient))
 
     local localForces = fLiftWings
-    local forces = fGravity + localForces:fromBasis(self.right, self.up, self.forward)
+    local worldForces = fGravity + fThrust
+    local forces = worldForces + localForces:fromBasis(self.right, self.up, self.forward)
 
     -- Forces (Rotational)
     local angularMomentum = Vec(
@@ -247,9 +257,9 @@ if not Missile then
     self.transform.pos = VecAdd(self.transform.pos, self.velocity * deltaTime)
 
     -- Update body basis
-    self.right = QuatRotateVec(self.transform.rot, Math.RIGHT)
-    self.up = QuatRotateVec(self.transform.rot, Math.UP)
-    self.forward = QuatRotateVec(self.transform.rot, Math.FORWARD)
+    self.right = Math.RIGHT:rotate(self.transform.rot)
+    self.up = Math.UP:rotate(self.transform.rot)
+    self.forward = Math.FORWARD:rotate(self.transform.rot)
 
     -- Apply transform
     SetBodyTransform(self.entities[1], self.transform)
@@ -263,6 +273,7 @@ if not Missile then
     DebugWatch("Position", self.transform.pos)
     DebugWatch("Linear velocity", self.velocity)
     DebugWatch("Local Linear velocity", localVelocityVec)
+    DebugWatch("Velocity", velocity)
   end
 
   function Missile:spreadWings()
