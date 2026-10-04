@@ -258,9 +258,6 @@ function client.tick(deltaTime)
     yawInput = -cameraX
 
     client.SetInputServerRpc(client.propulsion, pitchInput, yawInput, rollInput)
-
-    -- TODO Debug
-    DebugWatch("propulsion", client.propulsion)
   end
 
   if client.isControllingMissile and IsHandleValid(client.missileBody) and not debugMissile then

@@ -1,6 +1,7 @@
 #version 2
 #include "Math.lua"
 #include "SoundManager.lua"
+#include "Debug.lua"
 
 -- Missile is facing in the -Z direction
 -- LOG: Tried +Z, but it's easier to remember that forward is at negative direction, than that right is left. Camera is also looking at -Z, so with +Z I'd have to invert the body transform
@@ -27,7 +28,7 @@ if not Missile then
 
   function Missile.new()
     local obj = {
-      -- Physical
+      -- Entities
       entities = {},
 
       -- Wing data
@@ -45,18 +46,21 @@ if not Missile then
       wingsState = Missile.WingsState.FOLDED,
 
       exploded = false,
+
+      -- Physics
       transform = Transform(),
       right = Math.RIGHT,
       up = Math.UP,
       forward = Math.FORWARD,
 
-      -- TODO new
-      velocity = Vec(),
-      angularVelocity = Vec(),
+      velocity = Vec3.new(),
+      angularVelocity = Vec3.new(),
 
+      -- Input
       pitchInput = 0.0,
       yawInput = 0.0,
       rollInput = 0.0,
+      propulsion = 0.0
     }
 
     return setmetatable(obj, Missile)
@@ -112,11 +116,16 @@ if not Missile then
     SetShapeLocalTransform(self.rightWing, newRightWingTransform)
 
     -- TODO update movement
-    local newPosition = self.transform.pos
 
     -- Parameters
     local THRUST = 20000
     local AIR_DENSITY = 1.22 -- TODO min max
+
+
+    local CL_ALPHA_WINGS = 5.5 * math.pi
+    local AREA_WINGS_TOP = 8.0
+    local AREA_WINGS_FRONT = 0.8
+
 
     local BODY_AREA = 8.08
     local BODY_DRAG_COEFFICIENT = 0.3
@@ -144,35 +153,56 @@ if not Missile then
     --local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, self.wingsOffsetZ)
     local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, 0)
 
-    -- Input (TODO mapping?)
-    local propulsion = 1.0 -- [0, 1]
+    -- Input (TODO mapping? TODO enforce clamp TODO replace with self.var)
+    local propulsion = self.propulsion -- [0, 1]
     local wingsSpreading = self.wingsSpreading -- [0, 1]
     local pitchInput = self.pitchInput -- [-1, 1]
     local yawInput = self.yawInput -- [-1, 1]
     local rollInput = self.rollInput -- [-1, 1]
 
     -- Calculated (Linear)
-    local velocityDir, velocity = Math.VecNormalizeSafe(self.velocity)
-    local dynamicPressure = 0.5 * AIR_DENSITY * velocity * velocity
+    local velocityDir, velocity = self.velocity:normalize()
+    local localVelocityVec = self.velocity:toBasis(self.right, self.up, self.forward)
+    local localVelocityDir = localVelocityVec:normalize()
 
-    local forwardVelocity = VecDot(self.velocity, self.forward)
-    local upVelocity = VecDot(self.velocity, self.up)
-    local angleOfAttack = math.atan2(-upVelocity, forwardVelocity) -- radians
+    -- TODO move
+    function _lPointVelocity(point)
+      return localVelocityVec + VecCross(self.angularVelocity, point)
+    end
 
-    local liftCoefficient = Math.clamp(LIFT_COEFFICIENT_ALPHA * angleOfAttack, -LIFT_COEFFICIENT_MAX, LIFT_COEFFICIENT_MAX) -- TODO -pi; pi - min max
-    local liftDir, liftLength = Math.VecNormalizeSafe(Math.VecOrthogonalize(self.up, velocityDir))
+    -- TODO relative velocity: wind
 
-    -- Calculated (Rotational)
+    -- Forces (Linear) TODO new
 
+    -- Lift for:
+    --- rocket Z axis
+    --- wings XZ plane
+    --- 4 stabilizers: plane
 
-    -- Forces (Linear)
-    local fGravity = VecScale(GetGravity(), Missile.MASS)
-    local fThrust = VecScale(self.forward, THRUST * propulsion)
-    local fDragBody = VecScale(velocityDir, -dynamicPressure * BODY_AREA * BODY_DRAG_COEFFICIENT)
-    local fDragWings = VecScale(velocityDir, -dynamicPressure * wingsSpreading * WINGS_AREA * (WINGS_DRAG_COEFFICIENT + WINGS_INDUCED_DRAG * liftCoefficient * liftCoefficient))
-    local fLift = VecScale(liftDir, dynamicPressure * WINGS_AREA * liftCoefficient * wingsSpreading)
+    -- Gravity
+    local fGravity = Vec3.from(GetGravity()) * Missile.MASS
 
-    local forces = Math.VecAdd(fGravity, fThrust, fDragBody, fDragWings, fLift)
+    -- Thrust
+    --local fThrust = VecScale(self.forward, THRUST * propulsion)
+
+    -- Lift
+    local fLiftWingsDir = Math.VecNormalizeSafe(Math.VecOrthogonalize(Math.UP, VecScale(localVelocityDir, -1)))
+    local wingsAoA = -Math.VecPlaneAngleUnsafe(localVelocityDir, Math.UP)
+    local wingsCL = 0.5 * CL_ALPHA_WINGS * math.sin(2 * wingsAoA)
+    local fLiftWings = (0.5 * AIR_DENSITY * velocity * velocity) * AREA_WINGS_TOP * wingsCL * wingsSpreading * Vec3.from(fLiftWingsDir)
+
+    Debug.Vec(fLiftWings, self.transform.pos)
+    DebugWatch("Local velocity", localVelocityDir)
+    DebugWatch("Angle of Attack", math.deg(wingsAoA))
+    DebugWatch("fLiftWingsDir", fLiftWingsDir)
+    DebugWatch("fLiftWings", fLiftWings)
+
+    -- TODO Others
+    --local fDragBody = VecScale(velocityDir, -dynamicPressure * BODY_AREA * BODY_DRAG_COEFFICIENT)
+    --local fDragWings = VecScale(velocityDir, -dynamicPressure * wingsSpreading * WINGS_AREA * (WINGS_DRAG_COEFFICIENT + WINGS_INDUCED_DRAG * liftCoefficient * liftCoefficient))
+
+    local localForces = fLiftWings
+    local forces = fGravity + localForces:fromBasis(self.right, self.up, self.forward)
 
     -- Forces (Rotational)
     local angularMomentum = Vec(
@@ -187,32 +217,14 @@ if not Missile then
         VecScale(self.forward, ROLL_TORQUE * rollInput)
     )
 
-    local fLiftBody = Vec(
-      VecDot(fLift, self.right),
-      VecDot(fLift, self.up),
-      VecDot(fLift, VecScale(self.forward, -1))
-    )
-    local tauLiftBody = VecCross(WINGS_CENTER_OF_PRESSURE, fLiftBody)
     local tauDampingBody = Vec(
         -self.angularVelocity[1] * PITCH_DAMPING,
         -self.angularVelocity[2] * YAW_DAMPING,
         -self.angularVelocity[3] * ROLL_DAMPING
     )
 
-    --tauLiftBody = Vec()
-    --gyroTorque = Vec()
-
-    --local torque = Math.VecAdd(tauControl, tauLiftBody, tauDampingBody)
-    --local angularAcceleration = Vec(
-    --    ((torque[1] - gyroTorque[1]) / INERTIA_X),
-    --    ((torque[2] - gyroTorque[2]) / INERTIA_Y),
-    --    ((torque[3] - gyroTorque[3]) / INERTIA_Z)
-    --)
-
-    -- after you have built the world-space tauControl
     local tauControlBody = TransformToLocalVec(self.transform, tauControl)
-    -- now everything is body-frame
-    local torque = Math.VecAdd(tauControlBody, tauLiftBody, tauDampingBody)
+    local torque = Math.VecAdd(tauControlBody, tauDampingBody)
     local angularAcceleration = Vec(
         (torque[1] - gyroTorque[1]) / INERTIA_X,
         (torque[2] - gyroTorque[2]) / INERTIA_Y,
@@ -230,12 +242,11 @@ if not Missile then
     end
 
     -- Integrate (Linear)
-    local acceleration = VecScale(forces, 1 / Missile.MASS)
-    self.velocity = VecAdd(self.velocity, VecScale(acceleration, deltaTime))
-    newPosition = VecAdd(newPosition, VecScale(self.velocity, deltaTime))
+    local acceleration = forces / Missile.MASS
+    self.velocity = self.velocity + acceleration * deltaTime
+    self.transform.pos = VecAdd(self.transform.pos, self.velocity * deltaTime)
 
-    -- Update transform
-    self.transform.pos = newPosition
+    -- Update body basis
     self.right = QuatRotateVec(self.transform.rot, Math.RIGHT)
     self.up = QuatRotateVec(self.transform.rot, Math.UP)
     self.forward = QuatRotateVec(self.transform.rot, Math.FORWARD)
@@ -243,7 +254,15 @@ if not Missile then
     -- Apply transform
     SetBodyTransform(self.entities[1], self.transform)
 
-    DebugTransform(self.transform, 3.0)
+
+
+    -- TODO DEBUG
+    DebugTransform(self.velocity, 1.0)
+    Debug.Vec(self.velocity, self.transform.pos)
+    DebugWatch("Propulsion", self.propulsion)
+    DebugWatch("Position", self.transform.pos)
+    DebugWatch("Linear velocity", self.velocity)
+    DebugWatch("Local Linear velocity", localVelocityVec)
   end
 
   function Missile:spreadWings()

@@ -32,6 +32,16 @@ function DebugTransform(transform, scale) end
 ---@param lineWrapping boolean __optional__ True if you need to wrap Table lines. Works only with tables.
 function DebugWatch(name, value, lineWrapping) end
 
+---Draw a 3D debug overlay line in the world. Default color is white.
+---@param p0 Vec World space point as vector
+---@param p1 Vec World space point as vector
+---@param r number __optional__ Red
+---@param g number __optional__ Green
+---@param b number __optional__ Blue
+---@param a number __optional__ Alpha
+function DebugLine(p0, p1, r, g, b, a) end
+
+
 
 
 
