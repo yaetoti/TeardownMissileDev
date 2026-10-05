@@ -1,8 +1,6 @@
 #version 2
 #include "Utils.lua"
 
--- https://easings.net
-
 if not Mat3 then
   ---@class Mat3
   Mat3 = {}
@@ -309,14 +307,17 @@ if not Vec3 then
     return self - self:project(v)
   end
 
+  ---@return number Angle between vectors (radians)
   function Vec3:angle(v)
     return math.acos(self:normalize():dot(v:normalize()))
   end
 
+  ---@return number Angle between vectors (radians)
   function Vec3:angleUnsafe(v)
     return math.acos(self:dot(v))
   end
 
+  ---@return number Angle between vector and plane (radians)
   function Vec3:anglePlane(n)
     return math.asin(self:normalize():dot(n:normalize()))
   end
@@ -372,6 +373,14 @@ if not Math then
   Math.RIGHT = Vec3.new(1, 0, 0)
   Math.UP = Vec3.new(0, 1, 0)
   Math.FORWARD = Vec3.new(0, 0, -1)
+
+  ---@param n number
+  function Math.sign(n)
+    if n < 0 then return -1
+    elseif n > 0 then return 1
+    else return 0
+    end
+  end
 
   ---@return Vec component of v1, perpendicular to v2
   function Math.VecOrthogonalize(v1, v2)
@@ -476,6 +485,29 @@ if not Math then
     return Math.clamp(value, 0, 1)
   end
 
+  ---Rotates transform around a pivot point
+  ---@param transform Transform Transform to rotate
+  ---@param pivot Vec Pivot point
+  ---@param rotation Quat Rotation to apply to the transform
+  function Math.RotateTransformAround(transform, pivot, rotation)
+    local relative = VecSub(transform.pos, pivot)
+    local newPos = VecAdd(pivot, QuatRotateVec(rotation, relative))
+    local newRot = QuatRotateQuat(rotation, transform.rot)
+    return Transform(newPos, newRot)
+  end
+
+  ---Rotates point around a pivot point
+  ---@param point Vec Point to rotate
+  ---@param pivot Vec Pivot point
+  ---@param rotation Quat Rotation
+  function Math.RotateAround(point, pivot, rotation)
+    local relative = VecSub(point, pivot)
+    return VecAdd(pivot, QuatRotateVec(rotation, relative))
+  end
+
+
+  -- https://easings.net
+
   --
   -- Ease in
   --
@@ -526,25 +558,5 @@ if not Math then
     else
       return math.pow(2, -10 * x) * math.sin((x * 10 - 0.75) * c4) + 1
     end
-  end
-
-  ---Rotates transform around a pivot point
-  ---@param transform Transform Transform to rotate
-  ---@param pivot Vec Pivot point
-  ---@param rotation Quat Rotation to apply to the transform
-  function Math.RotateTransformAround(transform, pivot, rotation)
-    local relative = VecSub(transform.pos, pivot)
-    local newPos = VecAdd(pivot, QuatRotateVec(rotation, relative))
-    local newRot = QuatRotateQuat(rotation, transform.rot)
-    return Transform(newPos, newRot)
-  end
-
-  ---Rotates point around a pivot point
-  ---@param point Vec Point to rotate
-  ---@param pivot Vec Pivot point
-  ---@param rotation Quat Rotation
-  function Math.RotateAround(point, pivot, rotation)
-    local relative = VecSub(point, pivot)
-    return VecAdd(pivot, QuatRotateVec(rotation, relative))
   end
 end

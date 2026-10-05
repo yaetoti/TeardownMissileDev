@@ -186,6 +186,23 @@ if not Missile then
     ---@field area number Wing area
     ---@field clAlpha number Lift coefficient for wing shape and profile
 
+
+    ---@param angle number Angle of attack (radians, [-90, 90]). Positive above wind, negative below wind.
+    local function _calculateCL(angle)
+      local sign = Math.sign(angle)
+      local angleAbs = math.abs(angle)
+      if angleAbs < 0.5 then
+        -- so peak
+        return sign * math.sin(4.5 * angleAbs)
+      else
+        -- stall
+        local c = math.cos(angleAbs)
+        return 0.9 * sign * c * c
+      end
+    end
+
+    DebugPrint("Value: ".._calculateCL(math.pi / 9))
+
     ---Calculate lift for surface
     ---@param velocityVec Vec3
     ---@param wing WingLiftData
@@ -198,7 +215,8 @@ if not Missile then
       end
 
       local aoa = -localVelocityDir:anglePlane(wing.normalAxis)
-      local cl = 0.5 * wing.clAlpha * math.sin(2 * aoa) -- TODO 0.5 sin(2a) has range [-90;90], but peaks at +-45deg. real aircrafts peak at 20 and then wind stalls
+      --local cl = 0.5 * wing.clAlpha * math.sin(2 * aoa) -- TODO 0.5 sin(2a) has range [-90;90], but peaks at +-45deg. real aircrafts peak at 20 and then wind stalls
+      local cl = 0.5 * wing.clAlpha * _calculateCL(aoa)
 
       local liftDir = wing.normalAxis:orthogonalize(-localVelocityDir):normalize()
       local q = 0.5 * airDensity * localVelocity * localVelocity
