@@ -142,6 +142,7 @@ if not Mat3 then
 end
 
 if not Vec3 then
+  ---non-index operations should return a new vector
   ---@class Vec3
   Vec3 = {}
   Vec3.__index = function(t, k)
@@ -307,23 +308,23 @@ if not Vec3 then
     return self - self:project(v)
   end
 
-  ---@return number Angle between vectors (radians)
+  ---@return number Angle between vectors [0; 180] (radians)
   function Vec3:angle(v)
     return math.acos(self:normalize():dot(v:normalize()))
   end
 
-  ---@return number Angle between vectors (radians)
+  ---@return number Angle between vectors [0; 180] (radians)
   function Vec3:angleUnsafe(v)
     return math.acos(self:dot(v))
   end
 
-  ---@return number Angle between vector and plane (radians)
+  ---@return number Angle between vector and plane [-90; 90] (radians)
   function Vec3:anglePlane(n)
     return math.asin(self:normalize():dot(n:normalize()))
   end
 
   ---@param n Vec3 plane normal
-  ---@return number Angle between vector and plane (radians)
+  ---@return number Angle between vector and plane [-90; 90] (radians)
   function Vec3:anglePlaneUnsafe(n)
     return math.asin(self:dot(n))
   end
@@ -370,9 +371,16 @@ end
 if not Math then
   Math = {}
   Math.EPSILON = 0.000001
+  Math.HALF_PI = math.pi * 0.5
+
   Math.RIGHT = Vec3.new(1, 0, 0)
   Math.UP = Vec3.new(0, 1, 0)
   Math.FORWARD = Vec3.new(0, 0, -1)
+
+  -- In basis -Z becomes just +Z and goes back when going from basis
+  Math.OBJ_RIGHT = Vec3.new(1, 0, 0)
+  Math.OBJ_UP = Vec3.new(0, 1, 0)
+  Math.OBJ_FORWARD = Vec3.new(0, 0, 1)
 
   ---@param n number
   function Math.sign(n)

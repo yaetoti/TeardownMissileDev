@@ -124,9 +124,13 @@ if not Missile then
     local THRUST = 20000
     local AIR_DENSITY = 1.22 -- TODO min max
 
-
-    local CL_ALPHA_WINGS = 5.5
     local AREA_WINGS_TOP = 8.0
+    local CL_ALPHA_WINGS = 5.5
+    local AREA_BODY = 10.0
+    local CL_ALPHA_BODY = 0.3
+
+
+
     local AREA_WINGS_FRONT = 0.8
 
 
@@ -210,10 +214,40 @@ if not Missile then
         return Vec3.new()
       end
 
-      local aoa = -localVelocityDir:anglePlane(normalAxis)
+      local aoa = -localVelocityDir:anglePlane(normalAxis) -- TODO check angle
       local cl = 0.5 * clAlpha * _calculateCL(aoa)
 
       local liftDir = normalAxis:orthogonalize(-localVelocityDir):normalize()
+      local q = 0.5 * airDensity * localVelocity * localVelocity
+
+      return (q * area * cl) * liftDir
+    end
+
+    ---Calculate lift for axis
+    ---@param velocityVec Vec3 Velocity (should be in the same space as the axes)
+    ---@param airDensity number
+    ---@param area number Surface area
+    ---@param clAlpha number Lift coefficient for wing shape and profile
+    ---@param axis Vec3 Axis (normalized)
+    local function _calculateLiftAxis(velocityVec, airDensity, area, clAlpha, axis)
+      local localVelocityVec = velocityVec:project(axis)
+      local localVelocityDir, localVelocity = localVelocityVec:normalize()
+
+      if localVelocity < Math.EPSILON then
+        return Vec3.new()
+      end
+
+      local aoa = velocityVec:angle(axis)
+      -- wind from behind - aoa negative
+      if aoa > Math.HALF_PI then
+        aoa = aoa - math.pi
+      end
+
+      local cl = 0.5 * clAlpha * _calculateCL(aoa)
+
+      DebugPrint("Angle of attack for axis: "..math.deg(aoa))
+
+      local liftDir = -velocityVec:orthogonalize(axis):normalize()
       local q = 0.5 * airDensity * localVelocity * localVelocity
 
       return (q * area * cl) * liftDir
@@ -229,13 +263,15 @@ if not Missile then
     -- Lift
 
     --Lift for:
-    -- rocket Z axis (TODO write axis lift function. or extract projection)
+    -- +rocket Z axis (TODO write axis lift function. or extract projection)
     -- wings XZ plane ((+)front + side?)
     -- 4 stabilizers: (front only? + TODO add torque calculation)
 
-    local fLiftWings = _calculateLift(localVelocityVec, AIR_DENSITY, AREA_WINGS_TOP, CL_ALPHA_WINGS, Math.RIGHT, Math.UP) * wingsSpreading
+    local fLiftWings = _calculateLift(localVelocityVec, AIR_DENSITY, AREA_WINGS_TOP, CL_ALPHA_WINGS, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
+    local fLiftBody = _calculateLiftAxis(localVelocityVec, AIR_DENSITY, AREA_BODY, CL_ALPHA_BODY, Math.OBJ_FORWARD)
 
-    Debug.Vec(fLiftWings, self.transform.pos)
+    --Debug.Vec(fLiftWings, self.transform.pos)
+    Debug.Vec(fLiftBody, self.transform.pos)
     DebugWatch("Local velocity", localVelocityDir)
     DebugWatch("fLiftWings", fLiftWings)
 
@@ -243,7 +279,7 @@ if not Missile then
     --local fDragBody = VecScale(velocityDir, -dynamicPressure * BODY_AREA * BODY_DRAG_COEFFICIENT)
     --local fDragWings = VecScale(velocityDir, -dynamicPressure * wingsSpreading * WINGS_AREA * (WINGS_DRAG_COEFFICIENT + WINGS_INDUCED_DRAG * liftCoefficient * liftCoefficient))
 
-    local localForces = fLiftWings
+    local localForces = fLiftWings + fLiftBody
     local worldForces = fGravity + fThrust
     local forces = worldForces + localForces:fromBasis(self.right, self.up, self.forward)
 
