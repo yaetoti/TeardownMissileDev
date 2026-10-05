@@ -125,28 +125,14 @@ if not Missile then
     local AIR_DENSITY = 1.22 -- TODO min max
 
     local AREA_WINGS_TOP = 8.0
+    local AREA_WINGS_FRONT = 0.9
     local CL_ALPHA_WINGS = 5.5
-    local AREA_BODY = 10.0
+
+    local AREA_BODY_SIDE = 10.0
+    local AREA_BODY_FRONT = 1.5
     local CL_ALPHA_BODY = 0.3
+    local CD_BODY = 0.3
 
-
-
-    local AREA_WINGS_FRONT = 0.8
-
-
-    local BODY_AREA = 8.08
-    local BODY_DRAG_COEFFICIENT = 0.3
-
-    local WINGS_AREA = 10.0
-    local WINGS_DRAG_COEFFICIENT = 0.03
-    local WINGS_INDUCED_DRAG = 0.08
-
-    local LIFT_COEFFICIENT_ALPHA = 5.5
-    local LIFT_COEFFICIENT_MAX = 1.5
-
-
-
-    -- Rotational Parameters
     local INERTIA_X = 4000.0
     local INERTIA_Y = 4000.0
     local INERTIA_Z = 1000.0
@@ -162,27 +148,36 @@ if not Missile then
     --local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, self.wingsOffsetZ)
     --local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, 0)
 
-    -- Input (TODO mapping? TODO enforce clamp TODO replace with self.var)
+    -- Input
+    -- TODO mapping?
+    -- TODO enforce clamp
+    -- TODO replace with self.var
+
     local propulsion = self.propulsion -- [0, 1]
     local wingsSpreading = self.wingsSpreading -- [0, 1]
     local pitchInput = self.pitchInput -- [-1, 1]
     local yawInput = self.yawInput -- [-1, 1]
     local rollInput = self.rollInput -- [-1, 1]
 
-    -- Calculated (Linear)
+    -- Pre-calculated
     local velocityDir, velocity = self.velocity:normalize()
     local localVelocityVec = self.velocity:toBasis(self.right, self.up, self.forward)
     local localVelocityDir = localVelocityVec:normalize()
 
-    -- TODO move
+    -- TODO relative velocity: wind
+
+    -- TODO debug
+    DebugWatch("Propulsion", self.propulsion)
+    DebugWatch("Position", self.transform.pos)
+    DebugWatch("Velocity", self.velocity)
+    DebugWatch("Local velocity", localVelocityVec)
+    DebugWatch("Speed", velocity)
+
+    -- Helpers
+
     function _lPointVelocity(point)
       return localVelocityVec + VecCross(self.angularVelocity, point)
     end
-
-    -- TODO relative velocity: wind
-
-    -- Forces (Linear)
-
 
     ---@param angle number Angle of attack (radians, [-90, 90]). Positive above wind, negative below wind.
     local function _calculateCL(angle)
@@ -197,7 +192,6 @@ if not Missile then
         return 0.9 * sign * c * c
       end
     end
-
 
     ---Calculate lift for surface
     ---@param velocityVec Vec3 Velocity (should be in the same space as the axes)
@@ -253,6 +247,28 @@ if not Missile then
       return (q * area * cl) * liftDir
     end
 
+    ---@param velocityVec Vec3 Velocity (should be in the same space as axis)
+    ---@param airDensity number
+    ---@param area number Surface area
+    ---@param cd number Drag coefficient
+    ---@param axis Vec3 Surface axis (normalized)
+    local function _calculateDrag(velocityVec, airDensity, area, cd, axis)
+      local localVelocityVec = velocityVec:project(axis)
+      local localVelocityDir, localVelocity = localVelocityVec:normalize()
+
+      if localVelocity < Math.EPSILON then
+        return Vec3.new()
+      end
+
+      -- TODO check sign
+      -- Mul by -sign to handle both sides and move in the opposite direction
+      local q = -0.5 * airDensity * localVelocity * localVelocity * Math.sign(localVelocityDir:dot(axis))
+      return (q * area * cd) * axis
+    end
+
+
+    -- Forces (Linear)
+
 
     -- Gravity
     local fGravity = Vec3.from(GetGravity()) * Missile.MASS
@@ -263,27 +279,33 @@ if not Missile then
     -- Lift
 
     --Lift for:
-    -- +rocket Z axis (TODO write axis lift function. or extract projection)
+    -- +rocket Z axis
     -- wings XZ plane ((+)front + side?)
     -- 4 stabilizers: (front only? + TODO add torque calculation)
 
     local fLiftWings = _calculateLift(localVelocityVec, AIR_DENSITY, AREA_WINGS_TOP, CL_ALPHA_WINGS, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
-    local fLiftBody = _calculateLiftAxis(localVelocityVec, AIR_DENSITY, AREA_BODY, CL_ALPHA_BODY, Math.OBJ_FORWARD)
+    local fLiftBody = _calculateLiftAxis(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CL_ALPHA_BODY, Math.OBJ_FORWARD)
 
     --Debug.Vec(fLiftWings, self.transform.pos)
-    Debug.Vec(fLiftBody, self.transform.pos)
-    DebugWatch("Local velocity", localVelocityDir)
-    DebugWatch("fLiftWings", fLiftWings)
+    --Debug.Vec(fLiftBody, self.transform.pos)
+    --DebugWatch("fLiftWings", fLiftWings)
 
-    -- TODO Other forces
-    --local fDragBody = VecScale(velocityDir, -dynamicPressure * BODY_AREA * BODY_DRAG_COEFFICIENT)
-    --local fDragWings = VecScale(velocityDir, -dynamicPressure * wingsSpreading * WINGS_AREA * (WINGS_DRAG_COEFFICIENT + WINGS_INDUCED_DRAG * liftCoefficient * liftCoefficient))
+    -- Drag
+    local fForwardDrag = _calculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_FRONT + AREA_WINGS_FRONT * wingsSpreading, CD_BODY, Math.OBJ_FORWARD)
 
-    local localForces = fLiftWings + fLiftBody
+    Debug.Vec(fForwardDrag:fromBasis(self.right, self.up, self.forward), self.transform.pos)
+    DebugWatch("fForwardDrag", fForwardDrag)
+    DebugWatch("fForwardDragLength", fForwardDrag:length())
+
+    -- Combine
+    local localForces = fLiftWings + fLiftBody + fForwardDrag
     local worldForces = fGravity + fThrust
     local forces = worldForces + localForces:fromBasis(self.right, self.up, self.forward)
 
+
     -- Forces (Rotational)
+
+
     local angularMomentum = Vec(
         INERTIA_X * self.angularVelocity[1],
         INERTIA_Y * self.angularVelocity[2],
@@ -336,13 +358,8 @@ if not Missile then
 
 
     -- TODO DEBUG
-    DebugTransform(self.velocity, 1.0)
     Debug.Vec(self.velocity, self.transform.pos)
-    DebugWatch("Propulsion", self.propulsion)
-    DebugWatch("Position", self.transform.pos)
-    DebugWatch("Linear velocity", self.velocity)
-    DebugWatch("Local Linear velocity", localVelocityVec)
-    DebugWatch("Velocity", velocity)
+
   end
 
   function Missile:spreadWings()
