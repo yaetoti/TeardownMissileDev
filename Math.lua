@@ -276,7 +276,8 @@ if not Vec3 then
   ---@return Vec3, number Normalized vector, original length
   function Vec3:normalize()
     local len = self:length()
-    if len == 0 then
+    -- TODO relative length might be better, but more expensive
+    if len < Math.EPSILON then
       return Vec3.new(0, 0, 0), 0
     end
     return Vec3.new(self[1] / len, self[2] / len, self[3] / len), len
@@ -301,14 +302,7 @@ if not Vec3 then
     return v * self:dot(v)
   end
 
-  ---Project vector onto a plane
-  ---@param n Vec3 Plane normal
-  ---@return Vec3
-  function Vec3:projectPlane(n)
-    -- remove orthogonal component
-    return self - self:project(n)
-  end
-
+  ---Project vector onto a plane with normal v
   ---@param v Vec3
   ---@return Vec3 Component of vector, perpendicular to vector v
   function Vec3:orthogonalize(v)
@@ -360,6 +354,15 @@ if not Vec3 then
   ---@param q Quat
   function Vec3:rotate(q)
     return Vec3.from(QuatRotateVec(q, self))
+  end
+
+  ---Rotate around axis
+  ---@param axis Vec3 Rotation axis (normalized)
+  ---@param angle number Angle in radians
+  function Vec3:rotateAround(axis, angle)
+    -- https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+    local c, s = math.cos(angle), math.sin(angle)
+    return self * c + axis:cross(self) * s + axis * (axis:dot(self) * (1 - c))
   end
 end
 

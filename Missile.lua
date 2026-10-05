@@ -177,12 +177,35 @@ if not Missile then
 
     -- TODO relative velocity: wind
 
-    -- Forces (Linear) TODO new
+    -- Forces (Linear)
 
-    -- Lift for:
-    --- rocket Z axis
-    --- wings XZ plane
-    --- 4 stabilizers: plane
+
+    ---@class WingLiftData
+    ---@field spanAxis Vec3 Axis, along which velocity is ignored (hinge axis, skeleton axis, side axis, not forward, STFU, whatever) (normalized)
+    ---@field normalAxis Vec3 Axis, perpendicular to the wing surface (normalized)
+    ---@field area number Wing area
+    ---@field clAlpha number Lift coefficient for wing shape and profile
+
+    ---Calculate lift for surface
+    ---@param velocityVec Vec3
+    ---@param wing WingLiftData
+    local function _calculateLift(velocityVec, airDensity, wing)
+      local localVelocityVec = velocityVec:orthogonalize(wing.spanAxis) -- remove span component
+      local localVelocityDir, localVelocity = localVelocityVec:normalize()
+
+      if localVelocity < Math.EPSILON then
+        return Vec3.new()
+      end
+
+      local aoa = -localVelocityDir:anglePlane(wing.normalAxis)
+      local cl = 0.5 * wing.clAlpha * math.sin(2 * aoa) -- TODO 0.5 sin(2a) has range [-90;90], but peaks at +-45deg. real aircrafts peak at 20 and then wind stalls
+
+      local liftDir = wing.normalAxis:orthogonalize(-localVelocityDir):normalize()
+      local q = 0.5 * airDensity * localVelocity * localVelocity
+
+      return (q * wing.area * cl) * liftDir
+    end
+
 
     -- Gravity
     local fGravity = Vec3.from(GetGravity()) * Missile.MASS
@@ -191,22 +214,26 @@ if not Missile then
     local fThrust = THRUST * propulsion * self.forward
 
     -- Lift
-    local wingsLiftDir = Math.UP:orthogonalize(-localVelocityDir):normalize()
 
-    local wingsVelocityVec = localVelocityVec:with(0, nil, nil)
-    local wingsVelocityDir, wingsVelocity = wingsVelocityVec:normalize()
-    local wingsAoA = -wingsVelocityDir:anglePlane(Math.UP)
+    --Lift for:
+    -- rocket Z axis (TODO write axis lift function. or extract projection)
+    -- wings XZ plane ((+)front + side?)
+    -- 4 stabilizers: (front only? + TODO add torque calculation)
 
-    local wingsCL = 0.5 * CL_ALPHA_WINGS * math.sin(2 * wingsAoA)
-    local fLiftWings = (0.5 * AIR_DENSITY * wingsVelocity * wingsVelocity) * AREA_WINGS_TOP * wingsCL * wingsSpreading * Vec3.from(wingsLiftDir)
+    ---@type WingLiftData
+    local mainWings = {
+      spanAxis = Math.RIGHT,
+      normalAxis = Math.UP,
+      area = AREA_WINGS_TOP,
+      clAlpha = CL_ALPHA_WINGS,
+    }
+    local fLiftWings = _calculateLift(localVelocityVec, AIR_DENSITY, mainWings) * wingsSpreading
 
     Debug.Vec(fLiftWings, self.transform.pos)
-    DebugWatch("Angle of Attack", math.deg(wingsAoA))
     DebugWatch("Local velocity", localVelocityDir)
-    DebugWatch("fLiftWingsDir", wingsLiftDir)
     DebugWatch("fLiftWings", fLiftWings)
 
-    -- TODO Others
+    -- TODO Other forces
     --local fDragBody = VecScale(velocityDir, -dynamicPressure * BODY_AREA * BODY_DRAG_COEFFICIENT)
     --local fDragWings = VecScale(velocityDir, -dynamicPressure * wingsSpreading * WINGS_AREA * (WINGS_DRAG_COEFFICIENT + WINGS_INDUCED_DRAG * liftCoefficient * liftCoefficient))
 
