@@ -125,7 +125,7 @@ if not Missile then
     local AIR_DENSITY = 1.22 -- TODO min max
 
 
-    local CL_ALPHA_WINGS = 5.5 * math.pi
+    local CL_ALPHA_WINGS = 5.5
     local AREA_WINGS_TOP = 8.0
     local AREA_WINGS_FRONT = 0.8
 
@@ -191,17 +191,15 @@ if not Missile then
     local function _calculateCL(angle)
       local sign = Math.sign(angle)
       local angleAbs = math.abs(angle)
-      if angleAbs < 0.5 then
+      if angleAbs < 0.35 then
         -- so peak
-        return sign * math.sin(4.5 * angleAbs)
+        return sign * math.sin(6 * angleAbs)
       else
         -- stall
         local c = math.cos(angleAbs)
         return 0.9 * sign * c * c
       end
     end
-
-    DebugPrint("Value: ".._calculateCL(math.pi / 9))
 
     ---Calculate lift for surface
     ---@param velocityVec Vec3
