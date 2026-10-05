@@ -180,20 +180,13 @@ if not Missile then
     -- Forces (Linear)
 
 
-    ---@class WingLiftData
-    ---@field spanAxis Vec3 Axis, along which velocity is ignored (hinge axis, skeleton axis, side axis, not forward, STFU, whatever) (normalized)
-    ---@field normalAxis Vec3 Axis, perpendicular to the wing surface (normalized)
-    ---@field area number Wing area
-    ---@field clAlpha number Lift coefficient for wing shape and profile
-
-
     ---@param angle number Angle of attack (radians, [-90, 90]). Positive above wind, negative below wind.
     local function _calculateCL(angle)
       local sign = Math.sign(angle)
       local angleAbs = math.abs(angle)
       if angleAbs < 0.35 then
         -- so peak
-        return sign * math.sin(6 * angleAbs)
+        return sign * math.sin(6 * angleAbs) -- peak at 15
       else
         -- stall
         local c = math.cos(angleAbs)
@@ -201,25 +194,29 @@ if not Missile then
       end
     end
 
+
     ---Calculate lift for surface
-    ---@param velocityVec Vec3
-    ---@param wing WingLiftData
-    local function _calculateLift(velocityVec, airDensity, wing)
-      local localVelocityVec = velocityVec:orthogonalize(wing.spanAxis) -- remove span component
+    ---@param velocityVec Vec3 Velocity (should be in the same space as the axes)
+    ---@param airDensity number
+    ---@param area number Wing area
+    ---@param clAlpha number Lift coefficient for wing shape and profile
+    ---@param spanAxis Vec3 Axis, along which velocity is ignored (hinge axis, skeleton axis, side axis, not forward, STFU, whatever) (normalized)
+    ---@param normalAxis Vec3 Axis, perpendicular to the wing surface (normalized)
+    local function _calculateLift(velocityVec, airDensity, area, clAlpha, spanAxis, normalAxis)
+      local localVelocityVec = velocityVec:orthogonalize(spanAxis) -- remove span component
       local localVelocityDir, localVelocity = localVelocityVec:normalize()
 
       if localVelocity < Math.EPSILON then
         return Vec3.new()
       end
 
-      local aoa = -localVelocityDir:anglePlane(wing.normalAxis)
-      --local cl = 0.5 * wing.clAlpha * math.sin(2 * aoa) -- TODO 0.5 sin(2a) has range [-90;90], but peaks at +-45deg. real aircrafts peak at 20 and then wind stalls
-      local cl = 0.5 * wing.clAlpha * _calculateCL(aoa)
+      local aoa = -localVelocityDir:anglePlane(normalAxis)
+      local cl = 0.5 * clAlpha * _calculateCL(aoa)
 
-      local liftDir = wing.normalAxis:orthogonalize(-localVelocityDir):normalize()
+      local liftDir = normalAxis:orthogonalize(-localVelocityDir):normalize()
       local q = 0.5 * airDensity * localVelocity * localVelocity
 
-      return (q * wing.area * cl) * liftDir
+      return (q * area * cl) * liftDir
     end
 
 
@@ -236,14 +233,7 @@ if not Missile then
     -- wings XZ plane ((+)front + side?)
     -- 4 stabilizers: (front only? + TODO add torque calculation)
 
-    ---@type WingLiftData
-    local mainWings = {
-      spanAxis = Math.RIGHT,
-      normalAxis = Math.UP,
-      area = AREA_WINGS_TOP,
-      clAlpha = CL_ALPHA_WINGS,
-    }
-    local fLiftWings = _calculateLift(localVelocityVec, AIR_DENSITY, mainWings) * wingsSpreading
+    local fLiftWings = _calculateLift(localVelocityVec, AIR_DENSITY, AREA_WINGS_TOP, CL_ALPHA_WINGS, Math.RIGHT, Math.UP) * wingsSpreading
 
     Debug.Vec(fLiftWings, self.transform.pos)
     DebugWatch("Local velocity", localVelocityDir)
