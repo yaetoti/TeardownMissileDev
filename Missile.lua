@@ -291,14 +291,16 @@ if not Missile then
     --DebugWatch("fLiftWings", fLiftWings)
 
     -- Drag
-    local fForwardDrag = _calculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_FRONT + AREA_WINGS_FRONT * wingsSpreading, CD_BODY, Math.OBJ_FORWARD)
+    local fFrontDrag = _calculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_FRONT + AREA_WINGS_FRONT * wingsSpreading, CD_BODY, Math.OBJ_FORWARD)
+    local fTopDrag = _calculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE + AREA_WINGS_TOP * wingsSpreading, CD_BODY, Math.OBJ_UP)
+    local fSideDrag = _calculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.OBJ_RIGHT)
 
-    Debug.Vec(fForwardDrag:fromBasis(self.right, self.up, self.forward), self.transform.pos)
-    DebugWatch("fForwardDrag", fForwardDrag)
-    DebugWatch("fForwardDragLength", fForwardDrag:length())
+    --Debug.Vec(fForwardDrag:fromBasis(self.right, self.up, self.forward), self.transform.pos)
+    --DebugWatch("fForwardDrag", fForwardDrag)
+    --DebugWatch("fForwardDragLength", fForwardDrag:length())
 
     -- Combine
-    local localForces = fLiftWings + fLiftBody + fForwardDrag
+    local localForces = fLiftWings + fLiftBody + fFrontDrag + fTopDrag + fSideDrag
     local worldForces = fGravity + fThrust
     local forces = worldForces + localForces:fromBasis(self.right, self.up, self.forward)
 
