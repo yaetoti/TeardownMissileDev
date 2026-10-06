@@ -4,7 +4,7 @@
 #include "Player.lua"
 
 -- TODO remove
-debugMissile = false
+debugMissile = true
 debugDetach = false
 
 local time = 0
@@ -313,7 +313,9 @@ function server.tick(deltaTime)
   -- Update players
   for playerId, player in pairs(server.players) do
     if player.isControllingMissile then
-      DisablePlayerInput(playerId)
+      if not debugMissile then
+        DisablePlayerInput(playerId)
+      end
     end
   end
 

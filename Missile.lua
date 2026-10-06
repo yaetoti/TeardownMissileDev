@@ -96,6 +96,10 @@ if not Missile then
     local verticalOffset = -2.5
     self.wingsOffsetZ = verticalOffset * leftWingScale
 
+    self.stabilizersOffsetX = 9 * leftWingScale
+    self.stabilizersOffsetY = 6 * leftWingScale
+    self.stabilizersOffsetZ = -41.5 * leftWingScale
+
     self.leftWingTransform.pos = VecAdd(self.leftWingTransform.pos, Vec(0, verticalOffset * leftWingScale, 0))
     self.rightWingTransform.pos = VecAdd(self.rightWingTransform.pos, Vec(0, verticalOffset * rightWingScale, 0))
     SetShapeLocalTransform(self.leftWing, self.leftWingTransform)
@@ -118,10 +122,59 @@ if not Missile then
     SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
     SetShapeLocalTransform(self.rightWing, newRightWingTransform)
 
+    if not debugMissile then
+      self:_updateMovement(deltaTime)
+    end
+
+    -- TL
+    wingPivotDirTl = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(45))
+    wingPivotDirTr = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(45))
+    wingPivotDirBl = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(135))
+    wingPivotDirBr = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(135))
+
+    Debug.Vec(
+      wingPivotDirTl:fromBasis(self.right, self.up, self.forward),
+      Vec3.from(self.transform.pos)
+      + self.right * -self.stabilizersOffsetX
+      + self.up * self.stabilizersOffsetY
+      + self.forward * self.stabilizersOffsetZ
+    )
+
+    -- TR
+    Debug.Vec(
+      wingPivotDirTr:fromBasis(self.right, self.up, self.forward),
+      Vec3.from(self.transform.pos)
+        + self.right * self.stabilizersOffsetX
+        + self.up * self.stabilizersOffsetY
+        + self.forward * self.stabilizersOffsetZ
+    )
+
+    -- BL
+    Debug.Vec(
+      wingPivotDirBl:fromBasis(self.right, self.up, self.forward),
+      Vec3.from(self.transform.pos)
+        + self.right * -self.stabilizersOffsetX
+        + self.up * -self.stabilizersOffsetY
+        + self.forward * self.stabilizersOffsetZ
+    )
+
+    -- BR
+    Debug.Vec(
+      wingPivotDirBr:fromBasis(self.right, self.up, self.forward),
+      Vec3.from(self.transform.pos)
+        + self.right * self.stabilizersOffsetX
+        + self.up * -self.stabilizersOffsetY
+        + self.forward * self.stabilizersOffsetZ
+    )
+
+    -- And now we need to rotate it... But what are we rotating?
+  end
+
+  function Missile:_updateMovement(deltaTime)
     -- TODO update movement
 
     -- Parameters
-    local THRUST = 20000
+    local THRUST = 8000
     local AIR_DENSITY = 1.22 -- TODO min max
 
     local AREA_WINGS_TOP = 8.0
@@ -286,7 +339,6 @@ if not Missile then
     local fLiftWings = _calculateLift(localVelocityVec, AIR_DENSITY, AREA_WINGS_TOP, CL_ALPHA_WINGS, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
     local fLiftBody = _calculateLiftAxis(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CL_ALPHA_BODY, Math.OBJ_FORWARD)
 
-    --Debug.Vec(fLiftWings, self.transform.pos)
     --Debug.Vec(fLiftBody, self.transform.pos)
     --DebugWatch("fLiftWings", fLiftWings)
 
@@ -309,29 +361,29 @@ if not Missile then
 
 
     local angularMomentum = Vec(
-        INERTIA_X * self.angularVelocity[1],
-        INERTIA_Y * self.angularVelocity[2],
-        INERTIA_Z * self.angularVelocity[3]
+      INERTIA_X * self.angularVelocity[1],
+      INERTIA_Y * self.angularVelocity[2],
+      INERTIA_Z * self.angularVelocity[3]
     )
     local gyroTorque = VecCross(self.angularVelocity, angularMomentum)
     local tauControl = Math.VecAdd(
-        VecScale(self.right, PITCH_TORQUE * pitchInput),
-        VecScale(self.up, YAW_TORQUE * yawInput),
-        VecScale(self.forward, ROLL_TORQUE * rollInput)
+      VecScale(self.right, PITCH_TORQUE * pitchInput),
+      VecScale(self.up, YAW_TORQUE * yawInput),
+      VecScale(self.forward, ROLL_TORQUE * rollInput)
     )
 
     local tauDampingBody = Vec(
-        -self.angularVelocity[1] * PITCH_DAMPING,
-        -self.angularVelocity[2] * YAW_DAMPING,
-        -self.angularVelocity[3] * ROLL_DAMPING
+      -self.angularVelocity[1] * PITCH_DAMPING,
+      -self.angularVelocity[2] * YAW_DAMPING,
+      -self.angularVelocity[3] * ROLL_DAMPING
     )
 
     local tauControlBody = TransformToLocalVec(self.transform, tauControl)
     local torque = Math.VecAdd(tauControlBody, tauDampingBody)
     local angularAcceleration = Vec(
-        (torque[1] - gyroTorque[1]) / INERTIA_X,
-        (torque[2] - gyroTorque[2]) / INERTIA_Y,
-        (torque[3] - gyroTorque[3]) / INERTIA_Z
+      (torque[1] - gyroTorque[1]) / INERTIA_X,
+      (torque[2] - gyroTorque[2]) / INERTIA_Y,
+      (torque[3] - gyroTorque[3]) / INERTIA_Z
     )
 
     -- Integrate (Rotational)
@@ -357,11 +409,8 @@ if not Missile then
     -- Apply transform
     SetBodyTransform(self.entities[1], self.transform)
 
-
-
     -- TODO DEBUG
-    Debug.Vec(self.velocity, self.transform.pos)
-
+    --Debug.Vec(self.velocity, self.transform.pos)
   end
 
   function Missile:spreadWings()
