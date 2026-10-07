@@ -33,6 +33,7 @@ if not SoundManager then
   ---@param pitch number __optional__ Playback pitch. Default 1.0
   function client.PlaySoundClientRpc(soundId, pos, volume, registerVolume, pitch)
     pos = pos or GetPlayerTransform().pos
+    -- TODO pass optional params and investigate why I didnt do that (it wasn't playing, as I recall)
     volume = volume or 1.0
     registerVolume = registerVolume or true
     pitch = pitch or 1.0
