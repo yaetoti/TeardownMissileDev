@@ -34,12 +34,28 @@ if not Missile then
       -- Entities
       entities = {},
 
+      -- State
+      scale = 1.0,
+
       -- Wing data
       leftWing = nil,
       rightWing = nil,
       leftWingTransform = nil,
       rightWingTransform = nil,
-      wingsOffsetZ = 0.0,
+      wingsOffsetY = 0.0,
+
+      -- Stabilizers data
+      stabilizersOffsetX = 0.0,
+      stabilizersOffsetY = 0.0,
+      stabilizersOffsetZ = 0.0,
+      wingTL = nil,
+      wingTR = nil,
+      wingBL = nil,
+      wingBR = nil,
+      wingTransformTL = nil,
+      wingTransformTR = nil,
+      wingTransformBL = nil,
+      wingTransformBR = nil,
 
       -- State
       wingsRotation = Missile.WINGS_FOLDED_ROTATION,
@@ -75,6 +91,7 @@ if not Missile then
       return
     end
 
+    -- Update transform and basis
     if transform == nil then
       transform = Transform()
     end
@@ -84,30 +101,55 @@ if not Missile then
     self.up = Math.UP:rotate(self.transform.rot)
     self.forward = Math.FORWARD:rotate(self.transform.rot)
 
+    -- Spawn entities
     self.entities = Spawn("MOD/vox/Missile.xml", self.transform)
+
     self.leftWing = self.entities[8]
     self.rightWing = self.entities[7]
+
+    self.wingTL = self.entities[3]
+    self.wingTR = self.entities[4]
+    self.wingBL = self.entities[5]
+    self.wingBR = self.entities[6]
+
+    -- Get default shape transforms
     self.leftWingTransform = GetShapeLocalTransform(self.leftWing)
     self.rightWingTransform = GetShapeLocalTransform(self.rightWing)
 
-    -- Default transform (offset wings down into the mounting slot)
+    self.wingTransformTL = GetShapeLocalTransform(self.wingTL)
+    self.wingTransformTR = GetShapeLocalTransform(self.wingTR)
+    self.wingTransformBL = GetShapeLocalTransform(self.wingBL)
+    self.wingTransformBR = GetShapeLocalTransform(self.wingBR)
+
+    -- But pivot points in local wing space... AAAAAAA
+
+    -- Calculate wings offset
     local leftWingSizeX, leftWingSizeY, leftWingSizeZ, leftWingScale = GetShapeSize(self.leftWing)
     local rightWingSizeX, rightWingSizeY, rightWingSizeZ, rightWingScale = GetShapeSize(self.rightWing)
-    local verticalOffset = -2.5
-    self.wingsOffsetZ = verticalOffset * leftWingScale
+    self.scale = leftWingScale
+    self.wingsOffsetY = -2.5 * self.scale
 
-    self.stabilizersOffsetX = 9 * leftWingScale
-    self.stabilizersOffsetY = 6 * leftWingScale
-    self.stabilizersOffsetZ = -41.5 * leftWingScale
-
-    self.leftWingTransform.pos = VecAdd(self.leftWingTransform.pos, Vec(0, verticalOffset * leftWingScale, 0))
-    self.rightWingTransform.pos = VecAdd(self.rightWingTransform.pos, Vec(0, verticalOffset * rightWingScale, 0))
+    -- Move wings to their place
+    self.leftWingTransform.pos = VecAdd(self.leftWingTransform.pos, Vec(0, self.wingsOffsetY, 0))
+    self.rightWingTransform.pos = VecAdd(self.rightWingTransform.pos, Vec(0, self.wingsOffsetY, 0))
     SetShapeLocalTransform(self.leftWing, self.leftWingTransform)
     SetShapeLocalTransform(self.rightWing, self.rightWingTransform)
 
-    -- Pivot (center + 3 from wing base)
-    self.leftWingPivot = Vec(-0.5 * leftWingSizeX * leftWingScale, 0, -10 * leftWingScale)
-    self.rightWingPivot = Vec(0.5 * rightWingSizeX * rightWingScale, 0, -10 * rightWingScale)
+    -- Calculate wings pivot (+3 voxels from wing base)
+    self.leftWingPivot = Vec(-0.5 * leftWingSizeX * self.scale, 0, -10 * self.scale)
+    self.rightWingPivot = Vec(0.5 * rightWingSizeX * self.scale, 0, -10 * self.scale)
+
+
+    -- Calculate stabilizers offset
+    self.stabilizersOffsetX = 9 * self.scale
+    self.stabilizersOffsetY = 6 * self.scale
+    self.stabilizersOffsetZ = -41.5 * self.scale
+
+    -- Calculate stabilizers axes (in missile space)
+    self.wingPivotDirTl = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(45))
+    self.wingPivotDirTr = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(45))
+    self.wingPivotDirBl = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(135))
+    self.wingPivotDirBr = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(135))
   end
 
   function Missile:update(deltaTime)
@@ -126,14 +168,19 @@ if not Missile then
       self:_updateMovement(deltaTime)
     end
 
-    -- TL
-    wingPivotDirTl = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(45))
-    wingPivotDirTr = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(45))
-    wingPivotDirBl = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(135))
-    wingPivotDirBr = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(135))
+    -- Rotate wings
+    -- Rotate forward axis
+    -- Optimize rotations
+    -- Figure out how to set rotation degrees for separate wings (convention)
+    -- Calculate lift
 
+    DebugPrint()
+    --DebugPrint(Vec3.new(1, 2, 3):fromBasis(self.right, self.up, self.forward))
+    --DebugPrint(TransformToParentVec(Transform(), Vec3.new(1, 2, 3)))
+
+    -- TL
     Debug.Vec(
-      wingPivotDirTl:fromBasis(self.right, self.up, self.forward),
+      self.wingPivotDirTl:fromBasis(self.right, self.up, self.forward),
       Vec3.from(self.transform.pos)
       + self.right * -self.stabilizersOffsetX
       + self.up * self.stabilizersOffsetY
@@ -142,7 +189,7 @@ if not Missile then
 
     -- TR
     Debug.Vec(
-      wingPivotDirTr:fromBasis(self.right, self.up, self.forward),
+      self.wingPivotDirTr:fromBasis(self.right, self.up, self.forward),
       Vec3.from(self.transform.pos)
         + self.right * self.stabilizersOffsetX
         + self.up * self.stabilizersOffsetY
@@ -151,7 +198,7 @@ if not Missile then
 
     -- BL
     Debug.Vec(
-      wingPivotDirBl:fromBasis(self.right, self.up, self.forward),
+      self.wingPivotDirBl:fromBasis(self.right, self.up, self.forward),
       Vec3.from(self.transform.pos)
         + self.right * -self.stabilizersOffsetX
         + self.up * -self.stabilizersOffsetY
@@ -160,7 +207,7 @@ if not Missile then
 
     -- BR
     Debug.Vec(
-      wingPivotDirBr:fromBasis(self.right, self.up, self.forward),
+      self.wingPivotDirBr:fromBasis(self.right, self.up, self.forward),
       Vec3.from(self.transform.pos)
         + self.right * self.stabilizersOffsetX
         + self.up * -self.stabilizersOffsetY
@@ -168,7 +215,40 @@ if not Missile then
     )
 
     -- And now we need to rotate it... But what are we rotating?
+
+    -- Transform = pos + rot
+    --QuatAxisAngle(wingPivotDirTl, )
+
+    angle = angle + 30 * deltaTime
+
+    if InputDown("uparrow") then
+      angleOffset = angleOffset + deltaTime * 20
+    end
+
+    if InputDown("downarrow") then
+      angleOffset = angleOffset - deltaTime * 20
+    end
+
+    DebugPrint(angleOffset)
+
+    local rotation = QuatAxisAngle(self.wingPivotDirTl, angle)
+    local shapePos = Vec3.from(self.wingTransformTL.pos)
+    local pivotOffset = Vec3.new(5, 0, -5.5) * self.scale
+    -- Local transforms are messed up, Y and Z swapped for some reason (maybe because of mirror, maybe it's just format coordinate system), better use offset
+    local pivotPos = pivotOffset + shapePos
+
+    local newPos = (shapePos - pivotPos):rotateAround(self.wingPivotDirTl, math.rad(angle)) + pivotPos
+
+    -- right to left multiplication, rotation is applied first
+    SetShapeLocalTransform(self.wingTL, Transform(newPos, QuatRotateQuat(rotation, self.wingTransformTL.rot)))
+
+    DebugCross(TransformToParentPoint(self.transform, pivotPos))
+    DebugCross(TransformToParentPoint(self.transform, shapePos))
+    DebugCross(TransformToParentPoint(self.transform, newPos))
   end
+
+  angle = 0
+  angleOffset = 0
 
   function Missile:_updateMovement(deltaTime)
     -- TODO update movement
@@ -198,7 +278,7 @@ if not Missile then
     local YAW_DAMPING = 10000.0
     local ROLL_DAMPING = 3000.0
 
-    --local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, self.wingsOffsetZ)
+    --local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, self.wingsOffsetY)
     --local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, 0)
 
     -- Input

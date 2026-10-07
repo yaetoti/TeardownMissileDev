@@ -189,7 +189,7 @@ if not Vec3 then
       return Vec3.new(a[1] + b, a[2] + b, a[3] + b)
     end
 
-    if getmetatable(a) == Vec3 and getmetatable(b) == Vec3 then
+    if type(a) == "table" and type(b) == "table" then
       return Vec3.new(a[1] + b[1], a[2] + b[2], a[3] + b[3])
     end
 
@@ -288,9 +288,9 @@ if not Vec3 then
 
   function Vec3:cross(v)
     return Vec3.new(
-      self[2] * v[3] + self[3] * v[2],
+      self[2] * v[3] - self[3] * v[2],
       self[3] * v[1] - self[1] * v[3],
-      self[1] * v[2] + self[2] * v[1]
+      self[1] * v[2] - self[2] * v[1]
     )
   end
 
@@ -360,7 +360,7 @@ if not Vec3 then
 
   ---Rotate around axis
   ---@param axis Vec3 Rotation axis (normalized)
-  ---@param angle number Angle in radians
+  ---@param angle number Angle in radians (counterclockwise, right hand rule)
   function Vec3:rotateAround(axis, angle)
     -- https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
     local c, s = math.cos(angle), math.sin(angle)
