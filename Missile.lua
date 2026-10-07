@@ -146,10 +146,15 @@ if not Missile then
     self.stabilizersOffsetZ = -41.5 * self.scale
 
     -- Calculate stabilizers axes (in missile space)
-    self.wingPivotDirTl = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(45))
-    self.wingPivotDirTr = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(45))
-    self.wingPivotDirBl = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(135))
-    self.wingPivotDirBr = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(135))
+    self.wingPivotPosTL = Vec3.new(-self.stabilizersOffsetX, self.stabilizersOffsetY, self.stabilizersOffsetZ)
+    self.wingPivotPosTR = Vec3.new(self.stabilizersOffsetX, self.stabilizersOffsetY, self.stabilizersOffsetZ)
+    self.wingPivotPosBL = Vec3.new(-self.stabilizersOffsetX, -self.stabilizersOffsetY, self.stabilizersOffsetZ)
+    self.wingPivotPosBR = Vec3.new(self.stabilizersOffsetX, -self.stabilizersOffsetY, self.stabilizersOffsetZ)
+
+    self.wingPivotDirTL = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(45))
+    self.wingPivotDirTR = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(45))
+    self.wingPivotDirBL = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(135))
+    self.wingPivotDirBR = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(135))
   end
 
   function Missile:update(deltaTime)
@@ -159,8 +164,8 @@ if not Missile then
 
     -- Update wings
     self:_updateWingsSpreading(deltaTime)
-    local newLeftWingTransform = Math.RotateTransformAround(self.leftWingTransform, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
-    local newRightWingTransform = Math.RotateTransformAround(self.rightWingTransform, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
+    local newLeftWingTransform = Math.RotateTransformAroundPivot(self.leftWingTransform, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
+    local newRightWingTransform = Math.RotateTransformAroundPivot(self.rightWingTransform, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
     SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
     SetShapeLocalTransform(self.rightWing, newRightWingTransform)
 
@@ -174,77 +179,58 @@ if not Missile then
     -- Figure out how to set rotation degrees for separate wings (convention)
     -- Calculate lift
 
-    DebugPrint()
-    --DebugPrint(Vec3.new(1, 2, 3):fromBasis(self.right, self.up, self.forward))
-    --DebugPrint(TransformToParentVec(Transform(), Vec3.new(1, 2, 3)))
 
+    -- And now we need to rotate it... But what are we rotating?
+    angle = angle + 30 * deltaTime
+
+    -- Set stabilizers visual rotation
+    local wingsData = {
+      { self.wingTL, self.wingTransformTL, self.wingPivotDirTL, self.wingPivotPosTL:invertZ() },
+      { self.wingTR, self.wingTransformTR, self.wingPivotDirTR, self.wingPivotPosTR:invertZ() },
+      { self.wingBL, self.wingTransformBL, self.wingPivotDirBL, self.wingPivotPosBL:invertZ() },
+      { self.wingBR, self.wingTransformBR, self.wingPivotDirBR, self.wingPivotPosBR:invertZ() },
+    }
+
+    for _, wingData in ipairs(wingsData) do
+      -- TODO calculate angle
+
+      -- -Z forward in transforms - invert Z
+      SetShapeLocalTransform(
+        wingData[1],
+        Math.RotateTransformAroundAxis(
+          wingData[2],
+          wingData[3],
+          wingData[4],
+          angle
+        )
+      )
+    end
+
+
+    -- Draw debug axes
     -- TL
     Debug.Vec(
-      self.wingPivotDirTl:fromBasis(self.right, self.up, self.forward),
-      Vec3.from(self.transform.pos)
-      + self.right * -self.stabilizersOffsetX
-      + self.up * self.stabilizersOffsetY
-      + self.forward * self.stabilizersOffsetZ
+      self.wingPivotDirTL:fromBasis(self.right, self.up, self.forward),
+      Vec3.from(self.transform.pos) + self.wingPivotPosTL:fromBasis(self.right, self.up, self.forward)
     )
 
     -- TR
     Debug.Vec(
-      self.wingPivotDirTr:fromBasis(self.right, self.up, self.forward),
-      Vec3.from(self.transform.pos)
-        + self.right * self.stabilizersOffsetX
-        + self.up * self.stabilizersOffsetY
-        + self.forward * self.stabilizersOffsetZ
+      self.wingPivotDirTR:fromBasis(self.right, self.up, self.forward),
+      Vec3.from(self.transform.pos) + self.wingPivotPosTR:fromBasis(self.right, self.up, self.forward)
     )
 
     -- BL
     Debug.Vec(
-      self.wingPivotDirBl:fromBasis(self.right, self.up, self.forward),
-      Vec3.from(self.transform.pos)
-        + self.right * -self.stabilizersOffsetX
-        + self.up * -self.stabilizersOffsetY
-        + self.forward * self.stabilizersOffsetZ
+      self.wingPivotDirBL:fromBasis(self.right, self.up, self.forward),
+      Vec3.from(self.transform.pos) + self.wingPivotPosBL:fromBasis(self.right, self.up, self.forward)
     )
 
     -- BR
     Debug.Vec(
-      self.wingPivotDirBr:fromBasis(self.right, self.up, self.forward),
-      Vec3.from(self.transform.pos)
-        + self.right * self.stabilizersOffsetX
-        + self.up * -self.stabilizersOffsetY
-        + self.forward * self.stabilizersOffsetZ
+      self.wingPivotDirBR:fromBasis(self.right, self.up, self.forward),
+      Vec3.from(self.transform.pos) + self.wingPivotPosBR:fromBasis(self.right, self.up, self.forward)
     )
-
-    -- And now we need to rotate it... But what are we rotating?
-
-    -- Transform = pos + rot
-    --QuatAxisAngle(wingPivotDirTl, )
-
-    angle = angle + 30 * deltaTime
-
-    if InputDown("uparrow") then
-      angleOffset = angleOffset + deltaTime * 20
-    end
-
-    if InputDown("downarrow") then
-      angleOffset = angleOffset - deltaTime * 20
-    end
-
-    DebugPrint(angleOffset)
-
-    local rotation = QuatAxisAngle(self.wingPivotDirTl, angle)
-    local shapePos = Vec3.from(self.wingTransformTL.pos)
-    local pivotOffset = Vec3.new(5, 0, -5.5) * self.scale
-    -- Local transforms are messed up, Y and Z swapped for some reason (maybe because of mirror, maybe it's just format coordinate system), better use offset
-    local pivotPos = pivotOffset + shapePos
-
-    local newPos = (shapePos - pivotPos):rotateAround(self.wingPivotDirTl, math.rad(angle)) + pivotPos
-
-    -- right to left multiplication, rotation is applied first
-    SetShapeLocalTransform(self.wingTL, Transform(newPos, QuatRotateQuat(rotation, self.wingTransformTL.rot)))
-
-    DebugCross(TransformToParentPoint(self.transform, pivotPos))
-    DebugCross(TransformToParentPoint(self.transform, shapePos))
-    DebugCross(TransformToParentPoint(self.transform, newPos))
   end
 
   angle = 0

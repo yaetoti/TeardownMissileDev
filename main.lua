@@ -274,7 +274,7 @@ function client.tick(deltaTime)
     local cameraRot = cameraTransform.rot
     cameraRot = missileTransform.rot
 
-    --cameraPos = Math.RotateAround(cameraPos, missileTransform.pos, cameraRot)
+    --cameraPos = Math.RotateAroundPivot(cameraPos, missileTransform.pos, cameraRot)
 
     SetCameraTransform(Transform(cameraPos, cameraRot))
   end

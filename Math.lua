@@ -260,6 +260,10 @@ if not Vec3 then
     )
   end
 
+  function Vec3:invertZ()
+    return Vec3.new(self.x, self.y, -self.z)
+  end
+
   function Vec3:toVec()
     return Vec(self[1], self[2], self[3])
   end
@@ -497,7 +501,7 @@ if not Math then
   ---@param transform Transform Transform to rotate
   ---@param pivot Vec Pivot point
   ---@param rotation Quat Rotation to apply to the transform
-  function Math.RotateTransformAround(transform, pivot, rotation)
+  function Math.RotateTransformAroundPivot(transform, pivot, rotation)
     local relative = VecSub(transform.pos, pivot)
     local newPos = VecAdd(pivot, QuatRotateVec(rotation, relative))
     local newRot = QuatRotateQuat(rotation, transform.rot)
@@ -508,9 +512,23 @@ if not Math then
   ---@param point Vec Point to rotate
   ---@param pivot Vec Pivot point
   ---@param rotation Quat Rotation
-  function Math.RotateAround(point, pivot, rotation)
+  function Math.RotateAroundPivot(point, pivot, rotation)
     local relative = VecSub(point, pivot)
     return VecAdd(pivot, QuatRotateVec(rotation, relative))
+  end
+
+  ---Rotates transform around axis stemming from pivot
+  ---@param transform Transform
+  ---@param axis Vec axis vector (normalized)
+  ---@param angle number angle (clockwise, degrees)
+  ---@param pivotOffset Vec __optional__ pivot position (in the same space as transform)
+  ---@return Transform
+  function Math.RotateTransformAroundAxis(transform, axis, pivot, angle)
+    local deltaRotation = QuatAxisAngle(axis, angle)
+    return Transform(
+      VecAdd(QuatRotateVec(deltaRotation, VecSub(transform.pos, pivot)), pivot),
+      QuatRotateQuat(deltaRotation, transform.rot)
+    )
   end
 
 

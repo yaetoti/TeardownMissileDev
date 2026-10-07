@@ -134,13 +134,15 @@ function QuatEuler(x, y, z) end
 ---@return Quat
 function QuatLookAt(eye, target) end
 
+---Rotate one quaternion with another quaternion. This is mathematically equivalent to c = a * b using quaternion multiplication.
 ---@param a Quat
 ---@param b Quat
 ---@return Quat
 function QuatRotateQuat(a, b) end
 
----@param a Quat – Quaternion
----@param vec Vec – Vector
+---Rotate a vector by a quaternion
+---@param a Quat Quaternion
+---@param vec Vec Vector
 function QuatRotateVec(a, vec) end
 
 ---Spherical, linear interpolation between a and b, using t. This is very useful for animating between two rotations.
