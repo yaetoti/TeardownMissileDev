@@ -155,6 +155,11 @@ if not Missile then
     self.wingPivotDirTR = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(45))
     self.wingPivotDirBL = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(135))
     self.wingPivotDirBR = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(135))
+
+    self.wingAngleTL = 0.0
+    self.wingAngleTR = 0.0
+    self.wingAngleBL = 0.0
+    self.wingAngleBR = 0.0
   end
 
   function Missile:update(deltaTime)
@@ -169,68 +174,101 @@ if not Missile then
     SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
     SetShapeLocalTransform(self.rightWing, newRightWingTransform)
 
-    if not debugMissile then
-      self:_updateMovement(deltaTime)
+
+
+    -- Control stabilizers
+    --angle = angle + 30 * deltaTime
+    local pitch = 0.0
+    local yaw = 0.0
+    local roll = 0.0
+
+    if InputDown("up") then
+      pitch = pitch + 1
+    end
+    if InputDown("down") then
+      pitch = pitch - 1
+    end
+    if InputDown("right") then
+      yaw = yaw + 1
+    end
+    if InputDown("left") then
+      yaw = yaw - 1
+    end
+    if InputDown("e") then
+      roll = roll + 1
+    end
+    if InputDown("q") then
+      roll = roll - 1
     end
 
-    -- Rotate wings
-    -- Rotate forward axis
-    -- Optimize rotations
-    -- Figure out how to set rotation degrees for separate wings (convention)
-    -- Calculate lift
+    DebugWatch("pitch", pitch)
+    DebugWatch("yaw", yaw)
+    DebugWatch("roll", roll)
 
+    local maxAngle = 25
 
-    -- And now we need to rotate it... But what are we rotating?
-    angle = angle + 30 * deltaTime
+    pitch = -pitch
+    --yaw = -yaw
+    --roll = -roll
+
+    local s = 0.7
+    self.wingAngleTL = (roll + s * (pitch + yaw)) * maxAngle
+    self.wingAngleTR = (roll + s * (-pitch + yaw)) * maxAngle
+    self.wingAngleBL = (roll + s * (pitch - yaw)) * maxAngle
+    self.wingAngleBR = (roll + s * (-pitch - yaw)) * maxAngle
 
     -- Set stabilizers visual rotation
+    -- -Z forward in transforms - invert Z
     local wingsData = {
-      { self.wingTL, self.wingTransformTL, self.wingPivotDirTL, self.wingPivotPosTL:invertZ() },
-      { self.wingTR, self.wingTransformTR, self.wingPivotDirTR, self.wingPivotPosTR:invertZ() },
-      { self.wingBL, self.wingTransformBL, self.wingPivotDirBL, self.wingPivotPosBL:invertZ() },
-      { self.wingBR, self.wingTransformBR, self.wingPivotDirBR, self.wingPivotPosBR:invertZ() },
+      { self.wingTL, self.wingTransformTL, self.wingPivotDirTL, self.wingPivotPosTL:invertZ(), self.wingAngleTL },
+      { self.wingTR, self.wingTransformTR, self.wingPivotDirTR, self.wingPivotPosTR:invertZ(), self.wingAngleTR },
+      { self.wingBL, self.wingTransformBL, self.wingPivotDirBL, self.wingPivotPosBL:invertZ(), self.wingAngleBL },
+      { self.wingBR, self.wingTransformBR, self.wingPivotDirBR, self.wingPivotPosBR:invertZ(), self.wingAngleBR },
     }
 
     for _, wingData in ipairs(wingsData) do
-      -- TODO calculate angle
-
-      -- -Z forward in transforms - invert Z
       SetShapeLocalTransform(
         wingData[1],
         Math.RotateTransformAroundAxis(
           wingData[2],
           wingData[3],
           wingData[4],
-          angle
+          wingData[5]
         )
       )
     end
 
+    -- Update movement
+    if not debugMissile then
+      self:_updateMovement(deltaTime)
+    end
 
-    -- Draw debug axes
-    -- TL
-    Debug.Vec(
-      self.wingPivotDirTL:fromBasis(self.right, self.up, self.forward),
-      Vec3.from(self.transform.pos) + self.wingPivotPosTL:fromBasis(self.right, self.up, self.forward)
-    )
 
-    -- TR
-    Debug.Vec(
-      self.wingPivotDirTR:fromBasis(self.right, self.up, self.forward),
-      Vec3.from(self.transform.pos) + self.wingPivotPosTR:fromBasis(self.right, self.up, self.forward)
-    )
 
-    -- BL
-    Debug.Vec(
-      self.wingPivotDirBL:fromBasis(self.right, self.up, self.forward),
-      Vec3.from(self.transform.pos) + self.wingPivotPosBL:fromBasis(self.right, self.up, self.forward)
-    )
-
-    -- BR
-    Debug.Vec(
-      self.wingPivotDirBR:fromBasis(self.right, self.up, self.forward),
-      Vec3.from(self.transform.pos) + self.wingPivotPosBR:fromBasis(self.right, self.up, self.forward)
-    )
+    ---- Draw debug axes
+    ---- TL
+    --Debug.Vec(
+    --  self.wingPivotDirTL:fromBasis(self.right, self.up, self.forward),
+    --  Vec3.from(self.transform.pos) + self.wingPivotPosTL:fromBasis(self.right, self.up, self.forward)
+    --)
+    --
+    ---- TR
+    --Debug.Vec(
+    --  self.wingPivotDirTR:fromBasis(self.right, self.up, self.forward),
+    --  Vec3.from(self.transform.pos) + self.wingPivotPosTR:fromBasis(self.right, self.up, self.forward)
+    --)
+    --
+    ---- BL
+    --Debug.Vec(
+    --  self.wingPivotDirBL:fromBasis(self.right, self.up, self.forward),
+    --  Vec3.from(self.transform.pos) + self.wingPivotPosBL:fromBasis(self.right, self.up, self.forward)
+    --)
+    --
+    ---- BR
+    --Debug.Vec(
+    --  self.wingPivotDirBR:fromBasis(self.right, self.up, self.forward),
+    --  Vec3.from(self.transform.pos) + self.wingPivotPosBR:fromBasis(self.right, self.up, self.forward)
+    --)
   end
 
   angle = 0
@@ -247,10 +285,15 @@ if not Missile then
     local AREA_WINGS_FRONT = 0.9
     local CL_ALPHA_WINGS = 5.5
 
+    local AREA_STABILIZER = 0.5
+    local CL_ALPHA_STABILIZER = 0.5
+
     local AREA_BODY_SIDE = 10.0
     local AREA_BODY_FRONT = 1.5
     local CL_ALPHA_BODY = 0.3
     local CD_BODY = 0.3
+
+    local INERTIA = Vec3.new(4000, 4000, 1000)
 
     local INERTIA_X = 4000.0
     local INERTIA_Y = 4000.0
@@ -260,9 +303,9 @@ if not Missile then
     local YAW_TORQUE = 80000.0
     local ROLL_TORQUE = 15000.0
 
-    local PITCH_DAMPING = 10000.0
-    local YAW_DAMPING = 10000.0
-    local ROLL_DAMPING = 3000.0
+    local PITCH_DAMPING = 4000.0
+    local YAW_DAMPING = 4000.0
+    local ROLL_DAMPING = 1000.0
 
     --local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, self.wingsOffsetY)
     --local WINGS_CENTER_OF_PRESSURE = Vec(0, 0, 0)
@@ -294,7 +337,7 @@ if not Missile then
 
     -- Helpers
 
-    function _lPointVelocity(point)
+    function _localPointVelocity(point)
       return localVelocityVec + VecCross(self.angularVelocity, point)
     end
 
@@ -327,7 +370,7 @@ if not Missile then
         return Vec3.new()
       end
 
-      local aoa = -localVelocityDir:anglePlane(normalAxis) -- TODO check angle
+      local aoa = -localVelocityDir:anglePlane(normalAxis)
       local cl = 0.5 * clAlpha * _calculateCL(aoa)
 
       local liftDir = normalAxis:orthogonalize(-localVelocityDir):normalize()
@@ -358,7 +401,7 @@ if not Missile then
 
       local cl = 0.5 * clAlpha * _calculateCL(aoa)
 
-      DebugPrint("Angle of attack for axis: "..math.deg(aoa))
+      --DebugPrint("Angle of attack for axis: "..math.deg(aoa))
 
       local liftDir = -velocityVec:orthogonalize(axis):normalize()
       local q = 0.5 * airDensity * localVelocity * localVelocity
@@ -405,8 +448,34 @@ if not Missile then
     local fLiftWings = _calculateLift(localVelocityVec, AIR_DENSITY, AREA_WINGS_TOP, CL_ALPHA_WINGS, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
     local fLiftBody = _calculateLiftAxis(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CL_ALPHA_BODY, Math.OBJ_FORWARD)
 
-    --Debug.Vec(fLiftBody, self.transform.pos)
-    --DebugWatch("fLiftWings", fLiftWings)
+    local fLiftWingTotal = Vec3.new()
+    local tLiftWingTotal = Vec3.new()
+
+    local wingsData = {
+      { self.wingPivotDirTL, self.wingAngleTL, self.wingPivotPosTL },
+      { self.wingPivotDirTR, self.wingAngleTR, self.wingPivotPosTR },
+      { self.wingPivotDirBL, self.wingAngleBL, self.wingPivotPosBL },
+      { self.wingPivotDirBR, self.wingAngleBR, self.wingPivotPosBR },
+    }
+
+    -- TODO add velocity obtained from angularVelocity (calculate using radius vector)
+    -- TODO add drag calculation
+
+    for _, wingData in ipairs(wingsData) do
+      local wingPointVelocity = _localPointVelocity(wingData[3])
+
+      -- No idea why tf rotation is inversed. maybe because model was rotated in other direction, idk TODO investigate
+      local normal = Math.OBJ_FORWARD:rotateAround(wingData[1], -math.rad(wingData[2] - 90))
+      local fLiftWing = _calculateLift(wingPointVelocity, AIR_DENSITY, AREA_STABILIZER, CL_ALPHA_STABILIZER, wingData[1], normal)
+      -- TODO minus helped, but that should be wrong. maybe normals are messed up?
+      local tLiftWing = -wingData[3]:cross(fLiftWing)
+
+      fLiftWingTotal = fLiftWingTotal + fLiftWing
+      tLiftWingTotal = tLiftWingTotal + tLiftWing
+
+      Debug.Vec(wingData[1]:fromBasis(self.right, self.up, self.forward), wingData[3]:invertZ():fromTransformPos(self.transform))
+      Debug.Vec(normal:fromBasis(self.right, self.up, self.forward), wingData[3]:invertZ():fromTransformPos(self.transform))
+    end
 
     -- Drag
     local fFrontDrag = _calculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_FRONT + AREA_WINGS_FRONT * wingsSpreading, CD_BODY, Math.OBJ_FORWARD)
@@ -417,55 +486,65 @@ if not Missile then
     --DebugWatch("fForwardDrag", fForwardDrag)
     --DebugWatch("fForwardDragLength", fForwardDrag:length())
 
+    -- Damping
+    local tDampingBody = Vec3.new(
+      -self.angularVelocity[1] * PITCH_DAMPING,
+      -self.angularVelocity[2] * YAW_DAMPING,
+      -self.angularVelocity[3] * ROLL_DAMPING
+    ) * 0
+
     -- Combine
-    local localForces = fLiftWings + fLiftBody + fFrontDrag + fTopDrag + fSideDrag
+    local localForces = fLiftWings + fLiftBody + fFrontDrag + fTopDrag + fSideDrag + fLiftWingTotal
     local worldForces = fGravity + fThrust
     local forces = worldForces + localForces:fromBasis(self.right, self.up, self.forward)
 
+    local torque = tLiftWingTotal + tDampingBody
+    local angularAcceleration = torque / INERTIA
 
     -- Forces (Rotational)
 
 
-    local angularMomentum = Vec(
-      INERTIA_X * self.angularVelocity[1],
-      INERTIA_Y * self.angularVelocity[2],
-      INERTIA_Z * self.angularVelocity[3]
-    )
-    local gyroTorque = VecCross(self.angularVelocity, angularMomentum)
-    local tauControl = Math.VecAdd(
-      VecScale(self.right, PITCH_TORQUE * pitchInput),
-      VecScale(self.up, YAW_TORQUE * yawInput),
-      VecScale(self.forward, ROLL_TORQUE * rollInput)
-    )
+    --local angularMomentum = Vec(
+    --  INERTIA_X * self.angularVelocity[1],
+    --  INERTIA_Y * self.angularVelocity[2],
+    --  INERTIA_Z * self.angularVelocity[3]
+    --)
+    --local gyroTorque = VecCross(self.angularVelocity, angularMomentum)
+    --local tauControl = Math.VecAdd(
+    --  VecScale(self.right, PITCH_TORQUE * pitchInput),
+    --  VecScale(self.up, YAW_TORQUE * yawInput),
+    --  VecScale(self.forward, ROLL_TORQUE * rollInput)
+    --)
+    --
+    --local tauDampingBody = Vec(
+    --  -self.angularVelocity[1] * PITCH_DAMPING,
+    --  -self.angularVelocity[2] * YAW_DAMPING,
+    --  -self.angularVelocity[3] * ROLL_DAMPING
+    --)
+    --
+    --local tauControlBody = TransformToLocalVec(self.transform, tauControl)
+    --local torque = Math.VecAdd(tauControlBody, tauDampingBody, tLiftWingTotal)
+    --local angularAcceleration = Vec(
+    --  (torque[1] - gyroTorque[1]) / INERTIA_X,
+    --  (torque[2] - gyroTorque[2]) / INERTIA_Y,
+    --  (torque[3] - gyroTorque[3]) / INERTIA_Z
+    --)
 
-    local tauDampingBody = Vec(
-      -self.angularVelocity[1] * PITCH_DAMPING,
-      -self.angularVelocity[2] * YAW_DAMPING,
-      -self.angularVelocity[3] * ROLL_DAMPING
-    )
 
-    local tauControlBody = TransformToLocalVec(self.transform, tauControl)
-    local torque = Math.VecAdd(tauControlBody, tauDampingBody)
-    local angularAcceleration = Vec(
-      (torque[1] - gyroTorque[1]) / INERTIA_X,
-      (torque[2] - gyroTorque[2]) / INERTIA_Y,
-      (torque[3] - gyroTorque[3]) / INERTIA_Z
-    )
+    -- Integrate (Linear)
+    local acceleration = forces / Missile.MASS
+    self.velocity = self.velocity + acceleration * deltaTime
+    self.transform.pos = VecAdd(self.transform.pos, self.velocity * deltaTime)
 
     -- Integrate (Rotational)
     self.angularVelocity = VecAdd(self.angularVelocity, VecScale(angularAcceleration, deltaTime))
 
     local angularAxis, angularSpeed = Math.VecNormalizeSafe(self.angularVelocity)
     if angularSpeed > Math.EPSILON then
-      local angularDeltaDegrees = angularSpeed * deltaTime * 180.0 / math.pi
+      local angularDeltaDegrees = math.deg(angularSpeed * deltaTime)
       local deltaRotation = QuatAxisAngle(angularAxis, angularDeltaDegrees)
       self.transform.rot = QuatRotateQuat(self.transform.rot, deltaRotation)
     end
-
-    -- Integrate (Linear)
-    local acceleration = forces / Missile.MASS
-    self.velocity = self.velocity + acceleration * deltaTime
-    self.transform.pos = VecAdd(self.transform.pos, self.velocity * deltaTime)
 
     -- Update body basis
     self.right = Math.RIGHT:rotate(self.transform.rot)

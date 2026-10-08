@@ -4,8 +4,9 @@
 #include "Player.lua"
 
 -- TODO remove
-debugMissile = true
+debugMissile = false
 debugDetach = false
+debugFreeCamera = false
 
 local time = 0
 local ToolTabletId = "tablet"
@@ -234,47 +235,67 @@ function client.tick(deltaTime)
       debugDetach = not debugDetach
     end
 
-    -- Propulsion input
-    local propulsionInput = 0.0
-    if (InputDown("w")) then
-      propulsionInput = propulsionInput + 1.0
-    end
-    if (InputDown("s")) then
-      propulsionInput = propulsionInput - 1.0
+    if InputPressed("mmb") then
+      debugFreeCamera = not debugFreeCamera
     end
 
-    client.propulsion = Math.clamp01(client.propulsion + propulsionInput * PropulsionChangeSpeed * deltaTime)
+    -- Propulsion input
+    --local propulsionInput = 0
+    local propulsionInput = InputValue("mousewheel") * 0.1
+    if (InputDown("shift")) then
+      propulsionInput = propulsionInput * 0.1
+    end
+
+    --if (InputDown("shift")) then
+    --  propulsionInput = propulsionInput + 1.0
+    --end
+    --if (InputDown("ctrl")) then
+    --  propulsionInput = propulsionInput - 1.0
+    --end
+
+    --client.propulsion = Math.clamp01(client.propulsion + propulsionInput * PropulsionChangeSpeed * deltaTime)
+    client.propulsion = Math.clamp01(client.propulsion + propulsionInput)
 
     -- Rotation input
     local pitchInput = 0.0
     local yawInput = 0.0
     local rollInput = 0.0
 
-    if (InputDown("a")) then
-      rollInput = rollInput - 1.0
-    end
-    if (InputDown("d")) then
-      rollInput = rollInput + 1.0
-    end
+    -- TODO remove condition only
+    if not debugFreeCamera then
+      if (InputDown("a")) then
+        rollInput = rollInput - 1.0
+      end
+      if (InputDown("d")) then
+        rollInput = rollInput + 1.0
+      end
 
-    local cameraX = InputValue("camerax")
-    local cameraY = InputValue("cameray")
-    pitchInput = -cameraY
-    yawInput = -cameraX
+      local cameraX = InputValue("camerax")
+      local cameraY = InputValue("cameray")
+      pitchInput = -cameraY
+      yawInput = -cameraX
+    end
 
     client.SetInputServerRpc(client.propulsion, pitchInput, yawInput, rollInput)
   end
 
-  if not debugDetach and client.isControllingMissile and IsHandleValid(client.missileBody) and not debugMissile then
+  if not debugDetach and not debugMissile and client.isControllingMissile and IsHandleValid(client.missileBody) then
     -- Handle camera
     local cameraTransform = GetCameraTransform()
     local missileTransform = GetBodyTransform(client.missileBody)
     local cameraPos = TransformToParentPoint(missileTransform, Missile.CAMERA_OFFSET)
 
-    local cameraRot = cameraTransform.rot
-    cameraRot = missileTransform.rot
+    local cameraRot = missileTransform.rot
 
-    --cameraPos = Math.RotateAroundPivot(cameraPos, missileTransform.pos, cameraRot)
+    -- TODO remove
+    if debugFreeCamera then
+      local inputX = InputValue("camerax")
+      local inputY = InputValue("cameray")
+
+      cameraRot = QuatRotateQuat(cameraTransform.rot, QuatEuler(-inputY * 30, -inputX * 30, 0))
+
+      cameraPos = Math.RotateAroundPivot(cameraPos, missileTransform.pos, cameraRot)
+    end
 
     SetCameraTransform(Transform(cameraPos, cameraRot))
   end

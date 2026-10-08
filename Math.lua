@@ -314,7 +314,7 @@ if not Vec3 then
 
   ---@return number Angle between vectors [0; 180] (radians)
   function Vec3:angle(v)
-    return math.acos(self:normalize():dot(v:normalize()))
+    return math.acos(Math.clamp(self:normalize():dot(v:normalize()), -1, 1))
   end
 
   ---@return number Angle between vectors [0; 180] (radians)
@@ -324,7 +324,8 @@ if not Vec3 then
 
   ---@return number Angle between vector and plane [-90; 90] (radians)
   function Vec3:anglePlane(n)
-    return math.asin(self:normalize():dot(n:normalize()))
+    -- dot can be 1.00000000000002 and asin returns nan
+    return math.asin(Math.clamp(self:normalize():dot(n:normalize()), -1, 1))
   end
 
   ---@param n Vec3 plane normal
@@ -345,6 +346,14 @@ if not Vec3 then
     )
   end
 
+  function Vec3:toTransformPos(transform)
+    return Vec3.from(TransformToLocalPoint(transform, self))
+  end
+
+  function Vec3:toTransformVec(transform)
+    return Vec3.from(TransformToLocalVec(transform, self))
+  end
+
   ---Transforms vector out of basis. Assumes that basis vectors are orthogonal
   ---@param right Vec3 right basis vector
   ---@param up Vec3 vector basis vector
@@ -355,6 +364,14 @@ if not Vec3 then
       self[1] * right[2] + self[2] * up[2] + self[3] * forward[2],
       self[1] * right[3] + self[2] * up[3] + self[3] * forward[3]
     )
+  end
+
+  function Vec3:fromTransformPos(transform)
+    return Vec3.from(TransformToParentPoint(transform, self))
+  end
+
+  function Vec3:fromTransformVec(transform)
+    return Vec3.from(TransformToParentVec(transform, self))
   end
 
   ---@param q Quat
