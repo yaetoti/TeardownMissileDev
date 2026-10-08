@@ -466,16 +466,24 @@ if not Missile then
 
       -- No idea why tf rotation is inversed. maybe because model was rotated in other direction, idk TODO investigate
       local normal = Math.OBJ_FORWARD:rotateAround(wingData[1], -math.rad(wingData[2] - 90))
+      --local normal = Math.OBJ_FORWARD:rotateAround(wingData[1], math.rad(-wingData[2] - 90))
       local fLiftWing = _calculateLift(wingPointVelocity, AIR_DENSITY, AREA_STABILIZER, CL_ALPHA_STABILIZER, wingData[1], normal)
       -- TODO minus helped, but that should be wrong. maybe normals are messed up?
+      -- TODO but the force i correct...
       local tLiftWing = -wingData[3]:cross(fLiftWing)
+
+
 
       fLiftWingTotal = fLiftWingTotal + fLiftWing
       tLiftWingTotal = tLiftWingTotal + tLiftWing
 
-      Debug.Vec(wingData[1]:fromBasis(self.right, self.up, self.forward), wingData[3]:invertZ():fromTransformPos(self.transform))
-      Debug.Vec(normal:fromBasis(self.right, self.up, self.forward), wingData[3]:invertZ():fromTransformPos(self.transform))
+      --Debug.Vec(wingData[1]:fromBasis(self.right, self.up, self.forward), wingData[3]:invertZ():fromTransformPos(self.transform))
+      --Debug.Vec(normal:fromBasis(self.right, self.up, self.forward), wingData[3]:invertZ():fromTransformPos(self.transform))
+
+      --Debug.Vec(fLiftWing:fromBasis(self.right, self.up, self.forward), wingData[3]:invertZ():fromTransformPos(self.transform))
     end
+
+    --Debug.Vec(velocityDir, self.transform.pos)
 
     -- Drag
     local fFrontDrag = _calculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_FRONT + AREA_WINGS_FRONT * wingsSpreading, CD_BODY, Math.OBJ_FORWARD)
