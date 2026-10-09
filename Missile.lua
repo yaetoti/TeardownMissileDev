@@ -1,5 +1,6 @@
 #version 2
 #include "Math.lua"
+#include "Physics.lua"
 #include "SoundManager.lua"
 #include "Debug.lua"
 
@@ -276,17 +277,16 @@ if not Missile then
     local AIR_DENSITY = 1.22 -- TODO min max
 
     local AREA_WINGS_TOP = 8.0
-    local AREA_WINGS_FRONT = 0.9
     local CL_ALPHA_WINGS = 5.5
+    local CD_WINGS = 0.3
 
     --local WINGS_POS = Vec3.new(0, self.wingsOffsetY, 0)
     local WINGS_POS = Vec3.new(0, 0, 0)
     local WINGS_SIZE = self.scale * 40
-    local CD_WINGS_TOP = 0.3
 
-    local AREA_STABILIZER = 0.5
-    local CL_ALPHA_STABILIZER = 0.5
-    local CD_STABILIZER = 0.1
+    local AREA_FIN = 0.5
+    local CL_ALPHA_FIN = 0.5
+    local CD_FIN = 0.1
 
     local AREA_BODY_SIDE = 10.0
     local AREA_BODY_FRONT = 1.5
@@ -322,101 +322,6 @@ if not Missile then
 
 
 
-    -- = Helpers =
-
-    function _localPointVelocity(point)
-      return localVelocityVec + self.angularVelocity:cross(point)
-    end
-
-    ---@param angle number Angle of attack (radians, [-90, 90]). Positive above wind, negative below wind.
-    local function _calculateCL(angle)
-      local sign = Math.sign(angle)
-      local angleAbs = math.abs(angle)
-      if angleAbs < 0.35 then
-        -- so peak
-        return sign * math.sin(6 * angleAbs) -- peak at 15
-      else
-        -- stall
-        local c = math.cos(angleAbs)
-        return 0.9 * sign * c * c
-      end
-    end
-
-    ---Calculate lift for surface
-    ---@param velocityVec Vec3 Velocity (should be in the same space as the axes)
-    ---@param airDensity number
-    ---@param area number Wing area
-    ---@param clAlpha number Lift coefficient for wing shape and profile
-    ---@param spanAxis Vec3 Axis, along which velocity is ignored (hinge axis, skeleton axis, side axis, not forward, STFU, whatever) (normalized)
-    ---@param normalAxis Vec3 Axis, perpendicular to the wing surface (normalized)
-    local function _calculateLift(velocityVec, airDensity, area, clAlpha, spanAxis, normalAxis)
-      local localVelocityVec = velocityVec:orthogonalize(spanAxis) -- remove span component
-      local localVelocityDir, localVelocity = localVelocityVec:normalize()
-
-      if localVelocity < Math.EPSILON then
-        return Vec3.new()
-      end
-
-      local aoa = -localVelocityDir:anglePlane(normalAxis)
-      local cl = 0.5 * clAlpha * _calculateCL(aoa)
-
-      local liftDir = normalAxis:orthogonalize(-localVelocityDir):normalize()
-      local q = 0.5 * airDensity * localVelocity * localVelocity
-
-      return (q * area * cl) * liftDir
-    end
-
-    ---Calculate lift for axis
-    ---@param velocityVec Vec3 Velocity (should be in the same space as the axes)
-    ---@param airDensity number
-    ---@param area number Surface area
-    ---@param clAlpha number Lift coefficient for wing shape and profile
-    ---@param axis Vec3 Axis (normalized)
-    local function _calculateLiftAxis(velocityVec, airDensity, area, clAlpha, axis)
-      local localVelocityVec = velocityVec:project(axis)
-      local localVelocityDir, localVelocity = localVelocityVec:normalize()
-
-      if localVelocity < Math.EPSILON then
-        return Vec3.new()
-      end
-
-      local aoa = velocityVec:angle(axis)
-      -- wind from behind - aoa negative
-      if aoa > Math.HALF_PI then
-        aoa = aoa - math.pi
-      end
-
-      local cl = 0.5 * clAlpha * _calculateCL(aoa)
-
-      --DebugPrint("Angle of attack for axis: "..math.deg(aoa))
-
-      local liftDir = -velocityVec:orthogonalize(axis):normalize()
-      local q = 0.5 * airDensity * localVelocity * localVelocity
-
-      return (q * area * cl) * liftDir
-    end
-
-    ---@param velocityVec Vec3 Velocity (should be in the same space as axis)
-    ---@param airDensity number
-    ---@param area number Surface area
-    ---@param cd number Drag coefficient
-    ---@param axis Vec3 Surface axis (normalized)
-    local function _calculateDrag(velocityVec, airDensity, area, cd, axis)
-      local localVelocityVec = velocityVec:project(axis)
-      local localVelocityDir, localVelocity = localVelocityVec:normalize()
-
-      if localVelocity < Math.EPSILON then
-        return Vec3.new()
-      end
-
-      -- TODO check sign
-      -- Mul by -sign to handle both sides and move in the opposite direction
-      local q = -0.5 * airDensity * localVelocity * localVelocity * Math.sign(localVelocityDir:dot(axis))
-      return (q * area * cd) * axis
-    end
-
-
-
     -- === Forces ===
 
     -- Gravity
@@ -429,14 +334,14 @@ if not Missile then
     -- == Lift / Drag ==
 
     -- Body
-    local fLiftBody = _calculateLiftAxis(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CL_ALPHA_BODY, Math.OBJ_FORWARD)
+    local fLiftBody = Physics.CalculateLiftAxis(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CL_ALPHA_BODY, Math.OBJ_FORWARD)
 
-    local fFrontDrag = _calculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_FRONT, CD_BODY, Math.OBJ_FORWARD)
-    local fTopDrag = _calculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.OBJ_UP)
-    local fSideDrag = _calculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.OBJ_RIGHT)
+    local fFrontDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_FRONT, CD_BODY, Math.OBJ_FORWARD)
+    local fTopDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.OBJ_UP)
+    local fSideDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.OBJ_RIGHT)
 
     -- Main wings
-    local fLiftWings = _calculateLift(localVelocityVec, AIR_DENSITY, AREA_WINGS_TOP, CL_ALPHA_WINGS, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
+    local fLiftWings = Physics.CalculateLift(localVelocityVec, AIR_DENSITY, AREA_WINGS_TOP, CL_ALPHA_WINGS, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
 
     local rightVec = WINGS_POS + Math.OBJ_RIGHT * WINGS_SIZE
     local leftVec = WINGS_POS - Math.OBJ_RIGHT * WINGS_SIZE
@@ -456,18 +361,18 @@ if not Missile then
     }
 
     for _, finData in ipairs(finsData) do
-      local wingPointVelocity = _localPointVelocity(finData[3])
+      local finPointVelocity = Physics.PointVelocity(finData[3], localVelocityVec, self.angularVelocity)
 
       -- No idea why tf rotation is inversed. maybe because model was rotated in other direction, idk TODO investigate
       local normal = Math.OBJ_FORWARD:rotateAround(finData[1], -math.rad(finData[2] - 90))
       --local normal = Math.OBJ_FORWARD:rotateAround(finData[1], math.rad(-finData[2] - 90))
-      local fLiftFin = _calculateLift(wingPointVelocity, AIR_DENSITY, AREA_STABILIZER, CL_ALPHA_STABILIZER, finData[1], normal)
+      local fLiftFin = Physics.CalculateLift(finPointVelocity, AIR_DENSITY, AREA_FIN, CL_ALPHA_FIN, finData[1], normal)
       -- TODO minus helped, but that should be wrong. maybe normals are messed up?
       -- TODO but the force is correct...
       local tLiftFin = -finData[3]:cross(fLiftFin)
 
 
-      local fDragFin = _calculateDrag(wingPointVelocity, AIR_DENSITY, AREA_STABILIZER, CD_STABILIZER, normal)
+      local fDragFin = Physics.CalculateDrag(finPointVelocity, AIR_DENSITY, AREA_FIN, CD_FIN, normal)
       local tDragFin = -finData[3]:cross(fDragFin)
 
       fLiftFinTotal = fLiftFinTotal + fLiftFin + fDragFin
