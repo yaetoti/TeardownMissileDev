@@ -325,7 +325,7 @@ if not Missile then
     -- = Helpers =
 
     function _localPointVelocity(point)
-      return localVelocityVec + VecCross(self.angularVelocity, point)
+      return localVelocityVec + self.angularVelocity:cross(point)
     end
 
     ---@param angle number Angle of attack (radians, [-90, 90]). Positive above wind, negative below wind.
@@ -491,7 +491,7 @@ if not Missile then
     --DebugWatch("fForwardDragLength", fForwardDrag:length())
 
     -- Damping
-    local tDampingBody = -Vec3.from(self.angularVelocity) * TORQUE_DAMPING * 0
+    local tDampingBody = -self.angularVelocity * TORQUE_DAMPING * 0
 
 
 
@@ -509,9 +509,9 @@ if not Missile then
     self.transform.pos = VecAdd(self.transform.pos, self.velocity * deltaTime)
 
     -- === Integrate (Rotational) ===
-    self.angularVelocity = VecAdd(self.angularVelocity, VecScale(angularAcceleration, deltaTime))
+    self.angularVelocity = self.angularVelocity + angularAcceleration * deltaTime
 
-    local angularAxis, angularSpeed = Math.VecNormalizeSafe(self.angularVelocity)
+    local angularAxis, angularSpeed = self.angularVelocity:normalize()
     if angularSpeed > Math.EPSILON then
       local angularDeltaDegrees = math.deg(angularSpeed * deltaTime)
       local deltaRotation = QuatAxisAngle(angularAxis, angularDeltaDegrees)
