@@ -7,17 +7,9 @@ if not Debug then
     DebugLine(pos, VecAdd(pos, vec))
   end
 
-  function Debug.VecInTransform(transform, vec)
-    DebugLine(
-      transform.pos,
-      TransformToParentPoint(transform, vec)
-    )
-  end
-
-  function Debug.VecInBasis(vec, right, up, forward)
-    DebugLine(
-      transform.pos,
-      TransformToParentPoint(transform, vec)
-    )
+  function Debug.VecInTransform(transform, pos, vec)
+    local worldPos = TransformToParentPoint(transform, pos)
+    local worldVec = TransformToParentVec(transform, vec)
+    DebugLine(worldPos, VecAdd(worldPos, worldVec))
   end
 end

@@ -26,8 +26,8 @@ if not Missile then
   Missile.WINGS_SPREAD_ROTATION = 40
 
   Missile.EXPLOSION_STRENGTH = 4.0
-  Missile.NOSE_OFFSET = Vec(0, 0, -2.5)
-  Missile.CAMERA_OFFSET = Vec(0, 1, 6.0)
+  Missile.NOSE_OFFSET = Vec3.new(0, 0, -2.5)
+  Missile.CAMERA_OFFSET = Vec3.new(0, 1, 6.0)
   Missile.MASS = 800
 
   function Missile.new()
@@ -98,9 +98,7 @@ if not Missile then
     end
 
     self.transform = transform
-    self.right = Math.RIGHT:rotate(self.transform.rot)
-    self.up = Math.UP:rotate(self.transform.rot)
-    self.forward = Math.FORWARD:rotate(self.transform.rot)
+    self:_updateBasis()
 
     -- Spawn entities
     self.entities = Spawn("MOD/vox/Missile.xml", self.transform)
@@ -142,7 +140,7 @@ if not Missile then
     -- Calculate fins offset
     self.finsOffsetX = 9 * self.scale
     self.finsOffsetY = 6 * self.scale
-    self.finsOffsetZ = -41.5 * self.scale
+    self.finsOffsetZ = 41.5 * self.scale
 
     -- Calculate fins axes (in body space)
     self.finPivotPosTL = Vec3.new(-self.finsOffsetX, self.finsOffsetY, self.finsOffsetZ)
@@ -150,15 +148,21 @@ if not Missile then
     self.finPivotPosBL = Vec3.new(-self.finsOffsetX, -self.finsOffsetY, self.finsOffsetZ)
     self.finPivotPosBR = Vec3.new(self.finsOffsetX, -self.finsOffsetY, self.finsOffsetZ)
 
-    self.finPivotDirTL = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(45))
-    self.finPivotDirTR = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(45))
-    self.finPivotDirBL = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, math.rad(135))
-    self.finPivotDirBR = Math.OBJ_UP:rotateAround(Math.OBJ_FORWARD, -math.rad(135))
+    self.finPivotDirTL = Math.UP:rotateAround(Math.FORWARD, -math.rad(45))
+    self.finPivotDirTR = Math.UP:rotateAround(Math.FORWARD, math.rad(45))
+    self.finPivotDirBL = Math.UP:rotateAround(Math.FORWARD, -math.rad(135))
+    self.finPivotDirBR = Math.UP:rotateAround(Math.FORWARD, math.rad(135))
 
     self.finAngleTL = 0.0
     self.finAngleTR = 0.0
     self.finAngleBL = 0.0
     self.finAngleBR = 0.0
+  end
+
+  function Missile:_updateBasis()
+    self.right = Math.RIGHT:rotate(self.transform.rot)
+    self.up = Math.UP:rotate(self.transform.rot)
+    self.forward = Math.FORWARD:rotate(self.transform.rot)
   end
 
   function Missile:update(deltaTime)
@@ -168,10 +172,7 @@ if not Missile then
 
     -- === Update wings ===
     self:_updateWingsSpreading(deltaTime)
-    local newLeftWingTransform = Math.RotateTransformAroundPivot(self.wingTransformLeft, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
-    local newRightWingTransform = Math.RotateTransformAroundPivot(self.wingTransformRight, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
-    SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
-    SetShapeLocalTransform(self.rightWing, newRightWingTransform)
+    self:_updateWingsTransform()
 
 
 
@@ -199,8 +200,8 @@ if not Missile then
       roll = roll - 1
     end
 
-    pitch = -pitch
-    --yaw = -yaw
+    --pitch = -pitch
+    yaw = -yaw
     --roll = -roll
 
     DebugWatch("pitch", pitch)
@@ -217,12 +218,11 @@ if not Missile then
 
 
     -- === Set stabilizers visual rotation ===
-    -- -Z forward in transforms - invert Z
     local finsData = {
-      { self.finTL, self.finTransformTL, self.finPivotDirTL, self.finPivotPosTL:invertZ(), self.finAngleTL },
-      { self.finTR, self.finTransformTR, self.finPivotDirTR, self.finPivotPosTR:invertZ(), self.finAngleTR },
-      { self.finBL, self.finTransformBL, self.finPivotDirBL, self.finPivotPosBL:invertZ(), self.finAngleBL },
-      { self.finBR, self.finTransformBR, self.finPivotDirBR, self.finPivotPosBR:invertZ(), self.finAngleBR },
+      { self.finTL, self.finTransformTL, self.finPivotDirTL, self.finPivotPosTL, self.finAngleTL },
+      { self.finTR, self.finTransformTR, self.finPivotDirTR, self.finPivotPosTR, self.finAngleTR },
+      { self.finBL, self.finTransformBL, self.finPivotDirBL, self.finPivotPosBL, self.finAngleBL },
+      { self.finBR, self.finTransformBR, self.finPivotDirBR, self.finPivotPosBR, self.finAngleBR },
     }
 
     for _, finData in ipairs(finsData) do
@@ -232,7 +232,7 @@ if not Missile then
           finData[2],
           finData[3],
           finData[4],
-          finData[5]
+          -finData[5]
         )
       )
     end
@@ -246,29 +246,10 @@ if not Missile then
 
 
     ---- === Draw debug axes ===
-    ---- TL
-    --Debug.Vec(
-    --  self.finPivotDirTL:fromBasis(self.right, self.up, self.forward),
-    --  Vec3.from(self.transform.pos) + self.finPivotPosTL:fromBasis(self.right, self.up, self.forward)
-    --)
-    --
-    ---- TR
-    --Debug.Vec(
-    --  self.finPivotDirTR:fromBasis(self.right, self.up, self.forward),
-    --  Vec3.from(self.transform.pos) + self.finPivotPosTR:fromBasis(self.right, self.up, self.forward)
-    --)
-    --
-    ---- BL
-    --Debug.Vec(
-    --  self.finPivotDirBL:fromBasis(self.right, self.up, self.forward),
-    --  Vec3.from(self.transform.pos) + self.finPivotPosBL:fromBasis(self.right, self.up, self.forward)
-    --)
-    --
-    ---- BR
-    --Debug.Vec(
-    --  self.finPivotDirBR:fromBasis(self.right, self.up, self.forward),
-    --  Vec3.from(self.transform.pos) + self.finPivotPosBR:fromBasis(self.right, self.up, self.forward)
-    --)
+    Debug.VecInTransform(self.transform, self.finPivotPosTL, self.finPivotDirTL)
+    Debug.VecInTransform(self.transform, self.finPivotPosTR, self.finPivotDirTR)
+    Debug.VecInTransform(self.transform, self.finPivotPosBL, self.finPivotDirBL)
+    Debug.VecInTransform(self.transform, self.finPivotPosBR, self.finPivotDirBR)
   end
 
   function Missile:_updateMovement(deltaTime)
@@ -338,28 +319,28 @@ if not Missile then
     -- == Lift / Drag ==
 
     -- Body
-    local fLiftBody = Physics.CalculateLiftAxis(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CL_ALPHA_BODY, Math.OBJ_FORWARD)
+    local fLiftBody = Physics.CalculateLiftAxis(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CL_ALPHA_BODY, Math.FORWARD)
 
-    local fFrontDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_FRONT, CD_BODY, Math.OBJ_FORWARD)
-    local fTopDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.OBJ_UP)
-    local fSideDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.OBJ_RIGHT)
+    local fFrontDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_FRONT, CD_BODY, Math.FORWARD)
+    local fTopDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.UP)
+    local fSideDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.RIGHT)
 
     localForce = localForce + fLiftBody + fFrontDrag + fTopDrag + fSideDrag
 
     -- Main wings
     if wingsSpreading > 0.1 then
-      local rightVec = WINGS_POS + Math.OBJ_RIGHT * WINGS_SIZE * wingsSpreading
-      local leftVec = WINGS_POS - Math.OBJ_RIGHT * WINGS_SIZE * wingsSpreading
+      local rightVec = WINGS_POS + Math.RIGHT * WINGS_SIZE * wingsSpreading
+      local leftVec = WINGS_POS - Math.RIGHT * WINGS_SIZE * wingsSpreading
       local rightWingVelocity = Physics.PointVelocity(rightVec, localVelocityVec, self.angularVelocity)
       local leftWingVelocity = Physics.PointVelocity(leftVec, localVelocityVec, self.angularVelocity)
 
-      local fLiftRightWing = Physics.CalculateLift(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
-      local fLiftLeftWing = Physics.CalculateLift(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
+      local fLiftRightWing = Physics.CalculateLift(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.RIGHT, Math.UP) * wingsSpreading
+      local fLiftLeftWing = Physics.CalculateLift(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.RIGHT, Math.UP) * wingsSpreading
       local tLiftRightWing = rightVec:cross(fLiftRightWing)
       local tLiftLeftWing = leftVec:cross(fLiftLeftWing)
 
-      local fDragRightWing = Physics.CalculateDrag(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CD_WING, Math.OBJ_UP)
-      local fDragLeftWing = Physics.CalculateDrag(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CD_WING, Math.OBJ_UP)
+      local fDragRightWing = Physics.CalculateDrag(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CD_WING, Math.UP)
+      local fDragLeftWing = Physics.CalculateDrag(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CD_WING, Math.UP)
       local tDragRightWing = rightVec:cross(fDragRightWing)
       local tDragLeftWing = leftVec:cross(fDragLeftWing)
 
@@ -378,17 +359,12 @@ if not Missile then
     for _, finData in ipairs(finsData) do
       local finPointVelocity = Physics.PointVelocity(finData[3], localVelocityVec, self.angularVelocity)
 
-      -- No idea why tf rotation is inversed. maybe because model was rotated in other direction, idk TODO investigate
-      local normal = Math.OBJ_FORWARD:rotateAround(finData[1], -math.rad(finData[2] - 90))
-      --local normal = Math.OBJ_FORWARD:rotateAround(finData[1], math.rad(-finData[2] - 90))
+      local normal = Math.FORWARD:rotateAround(finData[1], math.rad(-finData[2] - 90))
       local fLiftFin = Physics.CalculateLift(finPointVelocity, AIR_DENSITY, AREA_FIN, CL_ALPHA_FIN, finData[1], normal)
-      -- TODO minus helped, but that should be wrong. maybe normals are messed up?
-      -- TODO but the force is correct...
-      local tLiftFin = -finData[3]:cross(fLiftFin)
-
+      local tLiftFin = finData[3]:cross(fLiftFin)
 
       local fDragFin = Physics.CalculateDrag(finPointVelocity, AIR_DENSITY, AREA_FIN, CD_FIN, normal)
-      local tDragFin = -finData[3]:cross(fDragFin)
+      local tDragFin = finData[3]:cross(fDragFin)
 
       localForce = localForce + fLiftFin + fDragFin
       torque = torque + tLiftFin + tDragFin
@@ -416,15 +392,13 @@ if not Missile then
     if angularSpeed > Math.EPSILON then
       local angularDeltaDegrees = math.deg(angularSpeed * deltaTime)
       local deltaRotation = QuatAxisAngle(angularAxis, angularDeltaDegrees)
+
+      -- Local space rotation
       self.transform.rot = QuatRotateQuat(self.transform.rot, deltaRotation)
-      --TODO Literally no difference, only signs change. Why?
-      --self.transform.rot = QuatRotateQuat(deltaRotation, self.transform.rot)
     end
 
     -- === Update body basis ===
-    self.right = Math.RIGHT:rotate(self.transform.rot)
-    self.up = Math.UP:rotate(self.transform.rot)
-    self.forward = Math.FORWARD:rotate(self.transform.rot)
+    self:_updateBasis()
 
     -- === Apply transform ===
     SetBodyTransform(self.entities[1], self.transform)
@@ -517,6 +491,13 @@ if not Missile then
       -- Update rotation
       self.wingsRotation = Math.lerp(Missile.WINGS_FOLDED_ROTATION, Missile.WINGS_SPREAD_ROTATION, self.wingsSpreading)
     end
+  end
+
+  function Missile:_updateWingsTransform()
+    local newLeftWingTransform = Math.RotateTransformAroundPivot(self.wingTransformLeft, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
+    local newRightWingTransform = Math.RotateTransformAroundPivot(self.wingTransformRight, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
+    SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
+    SetShapeLocalTransform(self.rightWing, newRightWingTransform)
   end
 
   setmetatable(Missile, {

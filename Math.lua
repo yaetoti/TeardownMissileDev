@@ -176,10 +176,12 @@ if not Vec3 then
     return Vec3.new(v[1], v[2], v[3])
   end
 
+  ---@return Vec3
   function Vec3.__unm(v)
     return Vec3.new(-v[1], -v[2], -v[3])
   end
 
+  ---@return Vec3
   function Vec3.__add(a, b)
     if type(a) == "number" then
       return Vec3.new(a + b[1], a + b[2], a + b[3])
@@ -196,6 +198,7 @@ if not Vec3 then
     error("unsupported vec3 addition operand:"..type(b), 2)
   end
 
+  ---@return Vec3
   function Vec3.__sub(a, b)
     if type(a) == "number" then
       return Vec3.new(a - b[1], a - b[2], a - b[3])
@@ -212,6 +215,7 @@ if not Vec3 then
     error("unsupported vec3 subtraction operand:"..type(b), 2)
   end
 
+  ---@return Vec3
   function Vec3.__mul(a, b)
     if type(a) == "number" then
       return Vec3.new(a * b[1], a * b[2], a * b[3])
@@ -228,6 +232,7 @@ if not Vec3 then
     error("unsupported vec3 multiplication operand:"..type(b), 2)
   end
 
+  ---@return Vec3
   function Vec3.__div(a, b)
     if type(a) == "number" then
       return Vec3.new(a / b[1], a / b[2], a / b[3])
@@ -248,10 +253,12 @@ if not Vec3 then
     return string.format("Vec3(%.3f, %.3f, %.3f)", v[1], v[2], v[3])
   end
 
+  ---@return Vec3
   function Vec3:clone()
     return Vec3.new(self[1], self[2], self[3])
   end
 
+  ---@return Vec3
   function Vec3:with(x, y, z)
     return Vec3.new(
       x or self.x,
@@ -284,10 +291,6 @@ if not Vec3 then
     return Vec3.new(self.x, -self.y, -self.z)
   end
 
-  function Vec3:toVec()
-    return Vec(self[1], self[2], self[3])
-  end
-
   function Vec3:length()
     return math.sqrt(self[1] * self[1] + self[2] * self[2] + self[3] * self[3])
   end
@@ -306,10 +309,18 @@ if not Vec3 then
     return Vec3.new(self[1] / len, self[2] / len, self[3] / len), len
   end
 
+  ---@param v Vec
+  ---@return number
   function Vec3:dot(v)
+    if v == nil then
+      error("NIL", 3)
+    end
+
     return self[1] * v[1] + self[2] * v[2] + self[3] * v[3]
   end
 
+  ---@param v Vec
+  ---@return Vec3
   function Vec3:cross(v)
     return Vec3.new(
       self[2] * v[3] - self[3] * v[2],
@@ -354,15 +365,16 @@ if not Vec3 then
     return math.asin(self:dot(n))
   end
 
-  ---Transforms vector into basis. Assumes that basis vectors are orthogonal
+  ---Transforms vector into basis. Assumes that basis vectors are orthogonal. Uses Teardown's RH coordinate system, where -Z forward is preserved.
   ---@param right Vec3 right basis vector
   ---@param up Vec3 vector basis vector
   ---@param forward Vec3 vector basis vector
+  ---@return Vec3
   function Vec3:toBasis(right, up, forward)
     return Vec3.new(
       self:dot(right),
       self:dot(up),
-      self:dot(forward)
+      self:dot(-forward)
     )
   end
 
@@ -374,11 +386,15 @@ if not Vec3 then
     return Vec3.from(TransformToLocalVec(transform, self))
   end
 
-  ---Transforms vector out of basis. Assumes that basis vectors are orthogonal
-  ---@param right Vec3 right basis vector
-  ---@param up Vec3 vector basis vector
-  ---@param forward Vec3 vector basis vector
+  ---Transforms vector out of basis. Assumes that basis vectors are orthogonal. Uses Teardown's RH coordinate system, where -Z forward is preserved.
+  ---@param right Vec right basis vector
+  ---@param up Vec vector basis vector
+  ---@param forward Vec vector basis vector
+  ---@return Vec3
   function Vec3:fromBasis(right, up, forward)
+    forward[1] = -forward[1]
+    forward[2] = -forward[2]
+    forward[3] = -forward[3]
     return Vec3.new(
       self[1] * right[1] + self[2] * up[1] + self[3] * forward[1],
       self[1] * right[2] + self[2] * up[2] + self[3] * forward[2],
@@ -417,11 +433,6 @@ if not Math then
   Math.RIGHT = Vec3.new(1, 0, 0)
   Math.UP = Vec3.new(0, 1, 0)
   Math.FORWARD = Vec3.new(0, 0, -1)
-
-  -- In basis -Z becomes just +Z and goes back when going from basis
-  Math.OBJ_RIGHT = Vec3.new(1, 0, 0)
-  Math.OBJ_UP = Vec3.new(0, 1, 0)
-  Math.OBJ_FORWARD = Vec3.new(0, 0, 1)
 
   ---@param n number
   function Math.sign(n)
@@ -557,7 +568,7 @@ if not Math then
   ---Rotates transform around axis stemming from pivot
   ---@param transform Transform
   ---@param axis Vec axis vector (normalized)
-  ---@param angle number angle (clockwise, degrees)
+  ---@param angle number angle (counterclockwise, degrees)
   ---@param pivotOffset Vec __optional__ pivot position (in the same space as transform)
   ---@return Transform
   function Math.RotateTransformAroundAxis(transform, axis, pivot, angle)
