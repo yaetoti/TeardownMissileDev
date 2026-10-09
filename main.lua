@@ -279,25 +279,30 @@ function client.tick(deltaTime)
     client.SetInputServerRpc(client.propulsion, pitchInput, yawInput, rollInput)
   end
 
+  -- TODO rewrite camera rotation
   if not debugDetach and not debugMissile and client.isControllingMissile and IsHandleValid(client.missileBody) then
     -- Handle camera
-    local cameraTransform = GetCameraTransform()
     local missileTransform = GetBodyTransform(client.missileBody)
-    local cameraPos = TransformToParentPoint(missileTransform, Missile.CAMERA_OFFSET)
 
-    local cameraRot = missileTransform.rot
+    local offsetVec = Missile.CAMERA_OFFSET:fromTransformVec(missileTransform)
+    local rot = missileTransform.rot
 
-    -- TODO remove
     if debugFreeCamera then
       local inputX = InputValue("camerax")
       local inputY = InputValue("cameray")
 
-      cameraRot = QuatRotateQuat(cameraTransform.rot, QuatEuler(-inputY * 30, -inputX * 30, 0))
+      local deltaRot = QuatEuler(-inputY * 30, -inputX * 30, 0)
+      debugFreeCameraRot = QuatRotateQuat(debugFreeCameraRot, deltaRot)
 
-      cameraPos = Math.RotateAroundPivot(cameraPos, missileTransform.pos, cameraRot)
+      rot = QuatRotateQuat(missileTransform.rot, debugFreeCameraRot)
+      offsetVec = QuatRotateVec(rot, Missile.CAMERA_OFFSET)
+    else
+      debugFreeCameraRot = Quat()
     end
 
-    SetCameraTransform(Transform(cameraPos, cameraRot))
+    local newTransform = Transform(VecAdd(missileTransform.pos, offsetVec), rot)
+
+    SetCameraTransform(newTransform)
   end
 end
 

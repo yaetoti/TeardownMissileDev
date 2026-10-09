@@ -1,5 +1,3 @@
-#version 2
-
 if not Debug then
   Debug = {}
 
@@ -11,5 +9,10 @@ if not Debug then
     local worldPos = TransformToParentPoint(transform, pos)
     local worldVec = TransformToParentVec(transform, vec)
     DebugLine(worldPos, VecAdd(worldPos, worldVec))
+  end
+
+  function Debug.PosInTransform(transform, pos)
+    local worldPos = TransformToParentPoint(transform, pos)
+    DebugCross(worldPos)
   end
 end

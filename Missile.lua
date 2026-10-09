@@ -29,6 +29,7 @@ if not Missile then
   Missile.NOSE_OFFSET = Vec3.new(0, 0, -2.5)
   Missile.CAMERA_OFFSET = Vec3.new(0, 1, 6.0)
   Missile.MASS = 800
+  Missile.FIN_PIVOT_SIZE = 0.3
 
   function Missile.new()
     local obj = {
@@ -357,14 +358,15 @@ if not Missile then
     }
 
     for _, finData in ipairs(finsData) do
-      local finPointVelocity = Physics.PointVelocity(finData[3], localVelocityVec, self.angularVelocity)
+      local finPos = finData[3] + finData[1] * Missile.FIN_PIVOT_SIZE
+      local finPointVelocity = Physics.PointVelocity(finPos, localVelocityVec, self.angularVelocity)
 
       local normal = Math.FORWARD:rotateAround(finData[1], math.rad(-finData[2] - 90))
       local fLiftFin = Physics.CalculateLift(finPointVelocity, AIR_DENSITY, AREA_FIN, CL_ALPHA_FIN, finData[1], normal)
-      local tLiftFin = finData[3]:cross(fLiftFin)
+      local tLiftFin = finPos:cross(fLiftFin)
 
       local fDragFin = Physics.CalculateDrag(finPointVelocity, AIR_DENSITY, AREA_FIN, CD_FIN, normal)
-      local tDragFin = finData[3]:cross(fDragFin)
+      local tDragFin = finPos:cross(fDragFin)
 
       localForce = localForce + fLiftFin + fDragFin
       torque = torque + tLiftFin + tDragFin
