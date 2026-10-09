@@ -3,11 +3,11 @@
 if not Debug then
   Debug = {}
 
-  function Debug.Vec(vec, pos)
+  function Debug.Vec(pos, vec)
     DebugLine(pos, VecAdd(pos, vec))
   end
 
-  function Debug.VecInTransform(vec, transform)
+  function Debug.VecInTransform(transform, vec)
     DebugLine(
       transform.pos,
       TransformToParentPoint(transform, vec)

@@ -205,7 +205,7 @@ if not Vec3 then
       return Vec3.new(a[1] - b, a[2] - b, a[3] - b)
     end
 
-    if getmetatable(a) == Vec3 and getmetatable(b) == Vec3 then
+    if type(a) == "table" and type(b) == "table" then
       return Vec3.new(a[1] - b[1], a[2] - b[2], a[3] - b[3])
     end
 
@@ -221,7 +221,7 @@ if not Vec3 then
       return Vec3.new(a[1] * b, a[2] * b, a[3] * b)
     end
 
-    if getmetatable(a) == Vec3 and getmetatable(b) == Vec3 then
+    if type(a) == "table" and type(b) == "table" then
       return Vec3.new(a[1] * b[1], a[2] * b[2], a[3] * b[3])
     end
 
@@ -237,7 +237,7 @@ if not Vec3 then
       return Vec3.new(a[1] / b, a[2] / b, a[3] / b)
     end
 
-    if getmetatable(a) == Vec3 and getmetatable(b) == Vec3 then
+    if type(a) == "table" and type(b) == "table" then
       return Vec3.new(a[1] / b[1], a[2] / b[2], a[3] / b[3])
     end
 
@@ -260,8 +260,28 @@ if not Vec3 then
     )
   end
 
+  function Vec3:invertX()
+    return Vec3.new(-self.x, self.y, self.z)
+  end
+
+  function Vec3:invertY()
+    return Vec3.new(self.x, -self.y, self.z)
+  end
+
   function Vec3:invertZ()
     return Vec3.new(self.x, self.y, -self.z)
+  end
+
+  function Vec3:invertXY()
+    return Vec3.new(-self.x, -self.y, self.z)
+  end
+
+  function Vec3:invertXZ()
+    return Vec3.new(-self.x, self.y, -self.z)
+  end
+
+  function Vec3:invertYZ()
+    return Vec3.new(self.x, -self.y, -self.z)
   end
 
   function Vec3:toVec()

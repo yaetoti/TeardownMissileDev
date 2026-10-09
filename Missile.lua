@@ -276,9 +276,9 @@ if not Missile then
     local THRUST = 8000
     local AIR_DENSITY = 1.22 -- TODO min max
 
-    local AREA_WINGS_TOP = 8.0
-    local CL_ALPHA_WINGS = 5.5
-    local CD_WINGS = 0.3
+    local AREA_WING_TOP = 4.0
+    local CL_ALPHA_WING = 5.5
+    local CD_WING = 0.3
 
     --local WINGS_POS = Vec3.new(0, self.wingsOffsetY, 0)
     local WINGS_POS = Vec3.new(0, 0, 0)
@@ -323,13 +323,17 @@ if not Missile then
 
 
     -- === Forces ===
+    local localForce = Vec3.new()
+    local force = Vec3.new()
+    local torque = Vec3.new()
 
     -- Gravity
     local fGravity = Vec3.from(GetGravity()) * Missile.MASS
+    force = force + fGravity
 
     -- Thrust
     local fThrust = THRUST * propulsion * self.forward
-
+    force = force + fThrust
 
     -- == Lift / Drag ==
 
@@ -340,19 +344,26 @@ if not Missile then
     local fTopDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.OBJ_UP)
     local fSideDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.OBJ_RIGHT)
 
-    -- Main wings
-    local fLiftWings = Physics.CalculateLift(localVelocityVec, AIR_DENSITY, AREA_WINGS_TOP, CL_ALPHA_WINGS, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
+    localForce = localForce + fLiftBody + fFrontDrag + fTopDrag + fSideDrag
 
-    local rightVec = WINGS_POS + Math.OBJ_RIGHT * WINGS_SIZE
-    local leftVec = WINGS_POS - Math.OBJ_RIGHT * WINGS_SIZE
-    local tLiftWingsRight = -rightVec:cross(fLiftWings)
-    local tLiftWingsLeft = -leftVec:cross(fLiftWings)
-    local tWings = tLiftWingsRight + tLiftWingsLeft
+    -- Main wings
+    if wingsSpreading > 0.1 then
+      local rightVec = WINGS_POS + Math.OBJ_RIGHT * WINGS_SIZE
+      local leftVec = WINGS_POS - Math.OBJ_RIGHT * WINGS_SIZE
+      local rightWingVelocity = Physics.PointVelocity(rightVec, localVelocityVec, self.angularVelocity)
+      local leftWingVelocity = Physics.PointVelocity(leftVec, localVelocityVec, self.angularVelocity)
+
+      local fLiftRightWing = Physics.CalculateLift(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
+      local fLiftLeftWing = Physics.CalculateLift(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
+
+      local tLiftRightWing = rightVec:cross(fLiftRightWing * 0.5)
+      local tLiftLeftWing = leftVec:cross(fLiftLeftWing * 0.5)
+
+      localForce = localForce + fLiftRightWing + fLiftLeftWing
+      torque = torque + tLiftRightWing + tLiftLeftWing
+    end
 
     -- Fins
-    local fLiftFinTotal = Vec3.new()
-    local tLiftFinTotal = Vec3.new()
-
     local finsData = {
       { self.finPivotDirTL, self.finAngleTL, self.finPivotPosTL },
       { self.finPivotDirTR, self.finAngleTR, self.finPivotPosTR },
@@ -375,45 +386,25 @@ if not Missile then
       local fDragFin = Physics.CalculateDrag(finPointVelocity, AIR_DENSITY, AREA_FIN, CD_FIN, normal)
       local tDragFin = -finData[3]:cross(fDragFin)
 
-      fLiftFinTotal = fLiftFinTotal + fLiftFin + fDragFin
-      tLiftFinTotal = tLiftFinTotal + tLiftFin + tDragFin
-
-      -- TODO debug axes
-      --Debug.Vec(finData[1]:fromBasis(self.right, self.up, self.forward), finData[3]:invertZ():fromTransformPos(self.transform))
-      --Debug.Vec(normal:fromBasis(self.right, self.up, self.forward), finData[3]:invertZ():fromTransformPos(self.transform))
-
-      -- TODO debug torque direction
-      --Debug.Vec(finData[3]:fromBasis(self.right, self.up, self.forward), finData[3]:invertZ():fromTransformPos(self.transform))
-      --Debug.Vec(fLiftFin:fromBasis(self.right, self.up, self.forward), finData[3]:invertZ():fromTransformPos(self.transform))
-      --Debug.Vec(tLiftFin:fromBasis(self.right, self.up, self.forward), finData[3]:invertZ():fromTransformPos(self.transform))
-      --DebugPrint("Torque: "..tostring(tLiftFin))
+      localForce = localForce + fLiftFin + fDragFin
+      torque = torque + tLiftFin + tDragFin
     end
-
-    -- TODO debug world stuff
-    --Debug.Vec(velocityDir, self.transform.pos)
-    --Debug.Vec(fForwardDrag:fromBasis(self.right, self.up, self.forward), self.transform.pos)
-    --DebugWatch("fForwardDrag", fForwardDrag)
-    --DebugWatch("fForwardDragLength", fForwardDrag:length())
 
     -- Damping
     local tDampingBody = -self.angularVelocity * TORQUE_DAMPING * 0
-
+    torque = torque + tDampingBody
 
 
     -- === Combine forces ===
-    local localForces = fLiftWings + fLiftBody + fFrontDrag + fTopDrag + fSideDrag + fLiftFinTotal
-    local worldForces = fGravity + fThrust
-    local forces = worldForces + localForces:fromBasis(self.right, self.up, self.forward)
-
-    local torque = tLiftFinTotal + tWings + tDampingBody
-    local angularAcceleration = torque / INERTIA
+    force = force + localForce:fromBasis(self.right, self.up, self.forward)
 
     -- === Integrate (Linear) ===
-    local acceleration = forces / Missile.MASS
+    local acceleration = force / Missile.MASS
     self.velocity = self.velocity + acceleration * deltaTime
     self.transform.pos = VecAdd(self.transform.pos, self.velocity * deltaTime)
 
     -- === Integrate (Rotational) ===
+    local angularAcceleration = torque / INERTIA
     self.angularVelocity = self.angularVelocity + angularAcceleration * deltaTime
 
     local angularAxis, angularSpeed = self.angularVelocity:normalize()
@@ -421,6 +412,7 @@ if not Missile then
       local angularDeltaDegrees = math.deg(angularSpeed * deltaTime)
       local deltaRotation = QuatAxisAngle(angularAxis, angularDeltaDegrees)
       self.transform.rot = QuatRotateQuat(self.transform.rot, deltaRotation)
+      --self.transform.rot = QuatRotateQuat(deltaRotation, self.transform.rot)
     end
 
     -- === Update body basis ===
