@@ -347,6 +347,9 @@ if not Missile then
 
       localForce = localForce + fLiftRightWing + fLiftLeftWing + fDragRightWing + fDragLeftWing
       torque = torque + tLiftRightWing + tLiftLeftWing + tDragRightWing + tDragLeftWing
+
+      Debug.VecInTransform(self.transform, {}, rightVec)
+      Debug.VecInTransform(self.transform, {}, leftVec)
     end
 
     -- Fins
@@ -370,6 +373,9 @@ if not Missile then
 
       localForce = localForce + fLiftFin + fDragFin
       torque = torque + tLiftFin + tDragFin
+
+      Debug.PosInTransform(self.transform, finPos)
+      Debug.VecInTransform(self.transform, finData[3], normal)
     end
 
     -- Damping

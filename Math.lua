@@ -392,13 +392,10 @@ if not Vec3 then
   ---@param forward Vec vector basis vector
   ---@return Vec3
   function Vec3:fromBasis(right, up, forward)
-    forward[1] = -forward[1]
-    forward[2] = -forward[2]
-    forward[3] = -forward[3]
     return Vec3.new(
-      self[1] * right[1] + self[2] * up[1] + self[3] * forward[1],
-      self[1] * right[2] + self[2] * up[2] + self[3] * forward[2],
-      self[1] * right[3] + self[2] * up[3] + self[3] * forward[3]
+      self[1] * right[1] + self[2] * up[1] + self[3] * -forward[1],
+      self[1] * right[2] + self[2] * up[2] + self[3] * -forward[2],
+      self[1] * right[3] + self[2] * up[3] + self[3] * -forward[3]
     )
   end
 
