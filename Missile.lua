@@ -348,19 +348,23 @@ if not Missile then
 
     -- Main wings
     if wingsSpreading > 0.1 then
-      local rightVec = WINGS_POS + Math.OBJ_RIGHT * WINGS_SIZE
-      local leftVec = WINGS_POS - Math.OBJ_RIGHT * WINGS_SIZE
+      local rightVec = WINGS_POS + Math.OBJ_RIGHT * WINGS_SIZE * wingsSpreading
+      local leftVec = WINGS_POS - Math.OBJ_RIGHT * WINGS_SIZE * wingsSpreading
       local rightWingVelocity = Physics.PointVelocity(rightVec, localVelocityVec, self.angularVelocity)
       local leftWingVelocity = Physics.PointVelocity(leftVec, localVelocityVec, self.angularVelocity)
 
       local fLiftRightWing = Physics.CalculateLift(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
       local fLiftLeftWing = Physics.CalculateLift(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.OBJ_RIGHT, Math.OBJ_UP) * wingsSpreading
+      local tLiftRightWing = rightVec:cross(fLiftRightWing)
+      local tLiftLeftWing = leftVec:cross(fLiftLeftWing)
 
-      local tLiftRightWing = rightVec:cross(fLiftRightWing * 0.5)
-      local tLiftLeftWing = leftVec:cross(fLiftLeftWing * 0.5)
+      local fDragRightWing = Physics.CalculateDrag(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CD_WING, Math.OBJ_UP)
+      local fDragLeftWing = Physics.CalculateDrag(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CD_WING, Math.OBJ_UP)
+      local tDragRightWing = rightVec:cross(fDragRightWing)
+      local tDragLeftWing = leftVec:cross(fDragLeftWing)
 
-      localForce = localForce + fLiftRightWing + fLiftLeftWing
-      torque = torque + tLiftRightWing + tLiftLeftWing
+      localForce = localForce + fLiftRightWing + fLiftLeftWing + fDragRightWing + fDragLeftWing
+      torque = torque + tLiftRightWing + tLiftLeftWing + tDragRightWing + tDragLeftWing
     end
 
     -- Fins
@@ -392,7 +396,8 @@ if not Missile then
 
     -- Damping
     local tDampingBody = -self.angularVelocity * TORQUE_DAMPING * 0
-    torque = torque + tDampingBody
+    -- TODO it should work without damping normally first
+    --torque = torque + tDampingBody
 
 
     -- === Combine forces ===
@@ -412,6 +417,7 @@ if not Missile then
       local angularDeltaDegrees = math.deg(angularSpeed * deltaTime)
       local deltaRotation = QuatAxisAngle(angularAxis, angularDeltaDegrees)
       self.transform.rot = QuatRotateQuat(self.transform.rot, deltaRotation)
+      --TODO Literally no difference, only signs change. Why?
       --self.transform.rot = QuatRotateQuat(deltaRotation, self.transform.rot)
     end
 
