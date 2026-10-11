@@ -89,10 +89,12 @@ if not ClientController then
           -- Update roll (abrupt)
           if InputDown("left") then rollInput = rollInput - 1 end
           if InputDown("right") then rollInput = rollInput + 1 end
-          if Math.distance(rollInput, 0) < Math.EPSILON and (InputReleased("left") or InputReleased("right")) then
+          --if Math.distance(rollInput, 0) < Math.EPSILON and (InputReleased("left") or InputReleased("right")) then
+          if Math.distance(rollInput, 0) < Math.EPSILON then
             client.roll = 0
           else
-            client.roll = Math.clamp(client.roll + rollInput, -1, 1)
+            --client.roll = Math.clamp(client.roll + rollInput, -1, 1)
+            client.roll = Math.clamp(rollInput, -1, 1)
           end
         end
 

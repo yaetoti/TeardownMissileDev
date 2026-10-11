@@ -253,6 +253,7 @@ if not Missile then
 
         ParticleType("plain")
         ParticleRadius(self.propulsion * 0.3 + 0.1, 1.0)
+        ParticleDrag(0.1)
         SpawnParticle(Missile.NOZZLE_OFFSET:fromTransformPos(self.transform), velocity, 2)
       end
     end
