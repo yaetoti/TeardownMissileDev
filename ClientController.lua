@@ -17,6 +17,10 @@ if not ClientController then
   client.missileId = 0
   client.missileBody = 0
 
+  -- Target marker
+  --client.targetPos = nil
+  client.targetPos = Vec()
+
   -- Controls
   client.pitchSensitivity = 0.5
   client.yawSensitivity = 0.5
@@ -145,6 +149,62 @@ if not ClientController then
 
     local width, height = UiWidth(), UiHeight()
 
+    -- === Draw target marker ===
+    if client.targetPos ~= nil then
+      UiPush()
+
+      local x, y, dist = UiWorldToPixel(client.targetPos)
+      local boxSize = 28
+      local boxSizeHalf = boxSize * 0.5
+      local boxSizePart = boxSize * 0.4
+      local thickness = 2
+      local color = dist > 0 and Vec(1, 1, 1) or Vec(0.8, 0.6, 0.6)
+
+      UiColor(color[1], color[2], color[3], 0.5)
+
+      -- Invert coords when behind
+      if dist <= 0 then
+        x = width - x
+        y = height - y
+      end
+
+      -- Rect
+      if dist > 0 then
+        -- w/o lines overlapping
+        local function corner(x, y, dx, dy)
+          local t1 = dy >= 0 and (thickness) or (-thickness)
+          local t2 = dx >= 0 and (thickness) or (-thickness)
+
+          UiPush()
+          UiTranslate(x, y)
+          UiRect(dx, t1)
+
+          UiTranslate(0, t1)
+          UiRect(t2, dy - t1)
+          UiPop()
+        end
+
+        corner(x - boxSizeHalf, y - boxSizeHalf, boxSizePart, boxSizePart)
+        corner(x + boxSizeHalf + 1, y - boxSizeHalf, -boxSizePart, boxSizePart)
+        corner(x - boxSizeHalf, y + boxSizeHalf + 1, boxSizePart, -boxSizePart)
+        corner(x + boxSizeHalf + 1, y + boxSizeHalf + 1, -boxSizePart, -boxSizePart)
+      end
+
+      -- Lines
+      UiPush()
+      UiTranslate(0, y)
+      UiRect(width, thickness)
+      UiPop()
+
+      UiPush()
+      UiTranslate(x, 0)
+      UiRect(thickness, height)
+      UiPop()
+
+      UiPop()
+    end
+
+    -- === Draw controls widget ===
     client.controlsWidget.pitch = client.pitch
     client.controlsWidget.yaw = client.yaw
     client.controlsWidget.roll = client.roll
