@@ -36,6 +36,7 @@ if not Missile then
   Missile.FIN_ROTATION_SPEED = 360.0
 
   Missile.SMOKE_DELAY = 2.0
+  Missile.PROPULSION_CHANGE_SPEED = 0.5
 
   function Missile.new()
     local obj = {
@@ -85,6 +86,7 @@ if not Missile then
 
       velocity = Vec3.new(),
       angularVelocity = Vec3.new(),
+      propulsion = 0.0,
 
       -- Input
       pitchInput = 0.0,
@@ -190,15 +192,14 @@ if not Missile then
     self:_updateWingsTransform()
 
 
+    -- === Update propulsion ===
+    self.propulsion = Math.moveTowards(self.propulsion, self.propulsionInput, Missile.PROPULSION_CHANGE_SPEED * deltaTime)
+
 
     -- === Fins control mixing ===
     local pitch = self.pitchInput
     local yaw = -self.yawInput
     local roll = self.rollInput
-
-    DebugWatch("pitch", pitch)
-    DebugWatch("yaw", yaw)
-    DebugWatch("roll", roll)
 
     local s = 0.7
     self.finAngleTargetTL = (roll + s * (pitch + yaw)) * Missile.FIN_MAX_ANGLE
@@ -240,14 +241,16 @@ if not Missile then
 
 
     -- === Update particles ===
-    if self.propulsionInput > Math.EPSILON then
+    if self.propulsion > Math.EPSILON then
       self.smokeTimer = self.smokeTimer + deltaTime
-      if self.smokeTimer > 0.02 * (1.1 - self.propulsionInput) then
+      if self.smokeTimer > 0.02 * (1.1 - self.propulsion) then
         self.smokeTimer = 0.0
 
+        local velocity = -self.forward * math.max(self.forward:dot(self.velocity), 10)
+
         ParticleType("plain")
-        ParticleRadius(self.propulsionInput * 0.3 + 0.1, 1.0)
-        SpawnParticle(Missile.NOZZLE_OFFSET:fromTransformPos(self.transform), -self.velocity, 0.5)
+        ParticleRadius(self.propulsion * 0.3 + 0.1, 1.0)
+        SpawnParticle(Missile.NOZZLE_OFFSET:fromTransformPos(self.transform), velocity, 0.5)
       end
     end
 
@@ -276,7 +279,6 @@ if not Missile then
     --local WINGS_POS = Vec3.new(0, self.scale * 8, self.scale * 10)
     --local WINGS_POS = Vec3.new(0, self.scale * 8, -self.scale * 3)
     local WINGS_POS = Vec3.new(0, self.scale * 8, 0)
-    --local WINGS_SIZE = self.scale * 40
     local WINGS_SIZE = self.scale * 30
 
     local AREA_FIN = 0.5
@@ -288,13 +290,12 @@ if not Missile then
     local CL_ALPHA_BODY = 0.5
     local CD_BODY = 1.0
 
-    local INERTIA = Vec3.new(4000, 4000, 1000)
-    local TORQUE_DAMPING = Vec3.new(4000, 4000, 1000) * 0.1
+    local INERTIA = Vec3.new(2000, 2000, 500)
+    local TORQUE_DAMPING = Vec3.new(400, 400, 100)
 
     -- Input
     -- TODO replace with self.var
-    local propulsion = self.propulsionInput -- [0, 1]
-    local wingsSpreading = self.wingsSpreading -- [0, 1]
+    local wingsSpreading = self.wingsSpreading
 
     -- Pre-calculated
     local velocityDir, velocity = self.velocity:normalize()
@@ -303,7 +304,6 @@ if not Missile then
 
     -- TODO relative velocity: wind
     -- TODO debug
-    DebugWatch("Propulsion", self.propulsionInput)
     DebugWatch("Position", self.transform.pos)
     DebugWatch("Velocity", self.velocity)
     DebugWatch("Local velocity", localVelocityVec)
@@ -321,7 +321,7 @@ if not Missile then
     force = force + fGravity
 
     -- Thrust
-    local fThrust = THRUST * propulsion * self.forward
+    local fThrust = THRUST * self.propulsion * self.forward
     force = force + fThrust
 
     -- == Lift / Drag ==

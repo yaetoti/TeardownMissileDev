@@ -15,9 +15,11 @@ if not Physics then
   function Physics.CalculateCL(angle)
     local sign = Math.sign(angle)
     local angleAbs = math.abs(angle)
-    if angleAbs < 0.35 then
+    --if angleAbs < 0.35 then -- peak at 15
+    if angleAbs < 0.5 then -- peak at 20
       -- so peak
-      return sign * math.sin(6 * angleAbs) -- peak at 15
+      --return sign * math.sin(6 * angleAbs) -- peak at 15
+      return sign * math.sin(6 * angleAbs) -- peak at 20
     else
       -- stall
       local c = math.cos(angleAbs)
