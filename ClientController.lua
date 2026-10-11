@@ -124,8 +124,8 @@ if not ClientController then
       end
 
       -- Handle input
-      -- TODO reset controls on explosion
-      if client.isControllingMissile then
+      -- TODO remove debugFreeCamera or make it a feature
+      if client.isControllingMissile and not debugFreeCamera then
         -- Get input
         local pitchInput = InputValue("cameray") * client.pitchSensitivity
         local yawInput = InputValue("camerax") * client.yawSensitivity
@@ -158,10 +158,7 @@ if not ClientController then
         client.propulsion = Math.clamp01(client.propulsion + propulsionInput)
 
         -- Send data to the server
-        -- TODO remove debug if
-        if not debugFreeCamera then
-          client.SetInputServerRpc(client.propulsion, client.pitch, client.yaw, client.roll)
-        end
+        client.SetInputServerRpc(client.propulsion, client.pitch, client.yaw, client.roll)
       end
     end
 
