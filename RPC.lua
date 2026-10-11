@@ -1,0 +1,149 @@
+if not RPC then
+  RPC = {}
+
+  function client.createMissileServerRpc()
+    if client.activeRequests.createMissile or client.isControllingMissile then
+      return
+    end
+
+    client.activeRequests.createMissile = true
+    ServerCall("server.createMissileServerRpc", GetLocalPlayer())
+  end
+
+  function server.createMissileServerRpc(clientId)
+    local player = server.players[clientId]
+    if not player or player.isControllingMissile then
+      -- Reject
+      server.createMissileResponseClientRpc(clientId, false)
+      return
+    end
+
+    -- Create missile
+    local missile, missileId = server.createMissile()
+    if debugMissile then
+      missile:spawn(Transform(Vec(0, 2, 6)))
+    else
+      missile:spawn(Transform(Vec(0, 80, 500 + missileId * 6)))
+    end
+
+    --missile:spreadWings()
+
+    -- Update status
+    player.isControllingMissile = true
+    player.controlledMissileId = missileId
+
+    -- Send confirmation and body
+    server.createMissileResponseClientRpc(clientId, true, missileId, missile.entities[1])
+  end
+
+  function server.createMissileResponseClientRpc(clientId, approval, missileId, missileBody)
+    ClientCall(clientId, "client.createMissileResponseClientRpc", approval, missileId, missileBody)
+  end
+
+  function client.createMissileResponseClientRpc(approval, missileId, missileBody)
+    client.activeRequests.createMissile = false
+
+    if not approval then
+      return
+    end
+
+    client.isControllingMissile = true
+    client.missileId = missileId
+    client.missileBody = missileBody
+
+    -- TODO how to detect that body is already destroyed?
+  end
+
+
+
+
+  function client.explodeMissileServerRpc(missileId)
+    if not client.isControllingMissile or client.activeRequests.explodeMissile then
+      return
+    end
+
+    ServerCall("server.explodeMissileServerRpc", GetLocalPlayer(), missileId)
+  end
+
+  function server.explodeMissileServerRpc(clientId, missileId)
+    local player = server.players[clientId]
+    if not player.isControllingMissile or player.controlledMissileId ~= missileId then
+      -- Reject
+      server.explodeMissileResponseClientRpc(clientId, false)
+      return
+    end
+
+    local missile = server.missiles[missileId]
+    missile:explode()
+
+    player.isControllingMissile = false
+
+    -- Approve
+    server.explodeMissileResponseClientRpc(clientId, true)
+  end
+
+  function server.explodeMissileResponseClientRpc(clientId, approval)
+    ClientCall(clientId, "client.explodeMissileResponseClientRpc", approval)
+  end
+
+  function client.explodeMissileResponseClientRpc(approval)
+    client.activeRequests.explodeMissile = false
+    if not approval then
+      return
+    end
+
+    client.isControllingMissile = false
+    client.isDetached = false
+    client.pitch = 0.0
+    client.yaw = 0.0
+    client.roll = 0.0
+    client.propulsion = 0.0
+  end
+
+
+
+  function client.ToggleWingsDeploymentServerRpc()
+    if not client.isControllingMissile or not IsHandleValid(client.missileBody) then
+      return
+    end
+
+    ServerCall("server.ToggleWingsDeploymentServerRpc", GetLocalPlayer(), client.missileId)
+  end
+
+  function server.ToggleWingsDeploymentServerRpc(clientId, missileId)
+    local player = server.players[clientId]
+    if not player.isControllingMissile or player.controlledMissileId ~= missileId then
+      return
+    end
+
+    local missile = server.missiles[missileId]
+    if missile.wingsState == Missile.WingsState.FOLDED or missile.wingsState == Missile.WingsState.FOLDING then
+      missile:spreadWings()
+    elseif missile.wingsState == Missile.WingsState.SPREAD or missile.wingsState == Missile.WingsState.SPREADING then
+      missile:foldWings()
+    end
+  end
+
+
+
+  function client.SetInputServerRpc(propulsionInput, pitchInput, yawInput, rollInput)
+    if not client.isControllingMissile then
+      return
+    end
+
+    ServerCall("server.SetInputServerRpc", GetLocalPlayer(), client.missileId, propulsionInput, pitchInput, yawInput, rollInput)
+  end
+
+  function server.SetInputServerRpc(clientId, missileId, propulsionInput, pitchInput, yawInput, rollInput)
+    local player = server.players[clientId]
+    if not player.isControllingMissile or player.controlledMissileId ~= missileId then
+      return
+    end
+
+    local missile = server.missiles[missileId]
+    missile.pitchInput = Math.clamp(pitchInput, -1, 1)
+    missile.yawInput = Math.clamp(yawInput, -1, 1)
+    missile.rollInput = Math.clamp(rollInput, -1, 1)
+    missile.propulsionInput = Math.clamp01(propulsionInput)
+  end
+end

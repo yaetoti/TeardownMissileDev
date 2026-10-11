@@ -542,6 +542,13 @@ if not Math then
     return Math.clamp(value, 0, 1)
   end
 
+  ---@param v1 number
+  ---@param v2 number
+  ---@return number Absolute distance between numbers
+  function Math.distance(v1, v2)
+    return math.abs(v1 - v2)
+  end
+
   ---Rotates transform around a pivot point
   ---@param transform Transform Transform to rotate
   ---@param pivot Vec Pivot point

@@ -81,7 +81,7 @@ if not Missile then
       pitchInput = 0.0,
       yawInput = 0.0,
       rollInput = 0.0,
-      propulsion = 0.0
+      propulsionInput = 0.0
     }
 
     return setmetatable(obj, Missile)
@@ -178,32 +178,9 @@ if not Missile then
 
 
     -- === Fins control mixing ===
-    local pitch = 0.0
-    local yaw = 0.0
-    local roll = 0.0
-
-    if InputDown("up") then
-      pitch = pitch + 1
-    end
-    if InputDown("down") then
-      pitch = pitch - 1
-    end
-    if InputDown("right") then
-      yaw = yaw + 1
-    end
-    if InputDown("left") then
-      yaw = yaw - 1
-    end
-    if InputDown("e") then
-      roll = roll + 1
-    end
-    if InputDown("q") then
-      roll = roll - 1
-    end
-
-    --pitch = -pitch
-    yaw = -yaw
-    --roll = -roll
+    local pitch = self.pitchInput
+    local yaw = -self.yawInput
+    local roll = self.rollInput
 
     DebugWatch("pitch", pitch)
     DebugWatch("yaw", yaw)
@@ -247,47 +224,46 @@ if not Missile then
 
 
     ---- === Draw debug axes ===
-    Debug.VecInTransform(self.transform, self.finPivotPosTL, self.finPivotDirTL)
-    Debug.VecInTransform(self.transform, self.finPivotPosTR, self.finPivotDirTR)
-    Debug.VecInTransform(self.transform, self.finPivotPosBL, self.finPivotDirBL)
-    Debug.VecInTransform(self.transform, self.finPivotPosBR, self.finPivotDirBR)
+    --Debug.VecInTransform(self.transform, self.finPivotPosTL, self.finPivotDirTL)
+    --Debug.VecInTransform(self.transform, self.finPivotPosTR, self.finPivotDirTR)
+    --Debug.VecInTransform(self.transform, self.finPivotPosBL, self.finPivotDirBL)
+    --Debug.VecInTransform(self.transform, self.finPivotPosBR, self.finPivotDirBR)
   end
 
   function Missile:_updateMovement(deltaTime)
+    -- TODO test
+    self:_updateBasis()
+    SetBodyTransform(self.entities[1], self.transform)
+
     -- Parameters
     local THRUST = 8000
     local AIR_DENSITY = 1.22 -- TODO min max
 
     local AREA_WING_TOP = 4.0
-    local CL_ALPHA_WING = 5.5
-    local CD_WING = 0.3
+    local CL_ALPHA_WING = 3.5
+    local CD_WING = 1.0
 
     --local WINGS_POS = Vec3.new(0, self.wingsOffsetY, 0)
-    local WINGS_POS = Vec3.new(0, 0, 0)
+    --local WINGS_POS = Vec3.new(0, self.scale * 8, self.scale * 10)
+    local WINGS_POS = Vec3.new(0, self.scale * 8, -self.scale * 3)
     local WINGS_SIZE = self.scale * 40
 
     local AREA_FIN = 0.5
-    local CL_ALPHA_FIN = 0.5
-    local CD_FIN = 0.1
+    local CL_ALPHA_FIN = 3.5
+    local CD_FIN = 1.0
 
     local AREA_BODY_SIDE = 10.0
     local AREA_BODY_FRONT = 1.5
-    local CL_ALPHA_BODY = 0.3
-    local CD_BODY = 0.3
+    local CL_ALPHA_BODY = 0.5
+    local CD_BODY = 1.0
 
     local INERTIA = Vec3.new(4000, 4000, 1000)
-    local TORQUE_DAMPING = Vec3.new(4000, 4000, 1000)
+    local TORQUE_DAMPING = Vec3.new(4000, 4000, 1000) * 0.1
 
     -- Input
-    -- TODO mapping?
-    -- TODO enforce clamp
     -- TODO replace with self.var
-
-    local propulsion = self.propulsion -- [0, 1]
+    local propulsion = self.propulsionInput -- [0, 1]
     local wingsSpreading = self.wingsSpreading -- [0, 1]
-    local pitchInput = self.pitchInput -- [-1, 1]
-    local yawInput = self.yawInput -- [-1, 1]
-    local rollInput = self.rollInput -- [-1, 1]
 
     -- Pre-calculated
     local velocityDir, velocity = self.velocity:normalize()
@@ -296,7 +272,7 @@ if not Missile then
 
     -- TODO relative velocity: wind
     -- TODO debug
-    DebugWatch("Propulsion", self.propulsion)
+    DebugWatch("Propulsion", self.propulsionInput)
     DebugWatch("Position", self.transform.pos)
     DebugWatch("Velocity", self.velocity)
     DebugWatch("Local velocity", localVelocityVec)
@@ -336,7 +312,7 @@ if not Missile then
       local leftWingVelocity = Physics.PointVelocity(leftVec, localVelocityVec, self.angularVelocity)
 
       local fLiftRightWing = Physics.CalculateLift(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.RIGHT, Math.UP) * wingsSpreading
-      local fLiftLeftWing = Physics.CalculateLift(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.RIGHT, Math.UP) * wingsSpreading
+      local fLiftLeftWing = Physics.CalculateLift(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, -Math.RIGHT, Math.UP) * wingsSpreading
       local tLiftRightWing = rightVec:cross(fLiftRightWing)
       local tLiftLeftWing = leftVec:cross(fLiftLeftWing)
 
@@ -348,8 +324,12 @@ if not Missile then
       localForce = localForce + fLiftRightWing + fLiftLeftWing + fDragRightWing + fDragLeftWing
       torque = torque + tLiftRightWing + tLiftLeftWing + tDragRightWing + tDragLeftWing
 
-      Debug.VecInTransform(self.transform, {}, rightVec)
-      Debug.VecInTransform(self.transform, {}, leftVec)
+      Debug.PosInTransform(self.transform, WINGS_POS)
+      Debug.LineInTransform(self.transform, WINGS_POS, rightVec)
+      Debug.LineInTransform(self.transform, WINGS_POS, leftVec)
+
+      Debug.VecInTransform(self.transform, rightVec, fLiftRightWing)
+      Debug.VecInTransform(self.transform, leftVec, fLiftLeftWing)
     end
 
     -- Fins
@@ -374,14 +354,13 @@ if not Missile then
       localForce = localForce + fLiftFin + fDragFin
       torque = torque + tLiftFin + tDragFin
 
-      Debug.PosInTransform(self.transform, finPos)
-      Debug.VecInTransform(self.transform, finData[3], normal)
+      --Debug.PosInTransform(self.transform, finPos)
+      --Debug.VecInTransform(self.transform, finData[3], normal)
     end
 
     -- Damping
-    local tDampingBody = -self.angularVelocity * TORQUE_DAMPING * 0
-    -- TODO it should work without damping normally first
-    --torque = torque + tDampingBody
+    local tDampingBody = -self.angularVelocity * TORQUE_DAMPING
+    torque = torque + tDampingBody
 
 
     -- === Combine forces ===
@@ -405,11 +384,13 @@ if not Missile then
       self.transform.rot = QuatRotateQuat(self.transform.rot, deltaRotation)
     end
 
+    Debug.Vec(self.transform.pos, self.velocity)
+
     -- === Update body basis ===
-    self:_updateBasis()
+    --self:_updateBasis()
 
     -- === Apply transform ===
-    SetBodyTransform(self.entities[1], self.transform)
+    --SetBodyTransform(self.entities[1], self.transform)
   end
 
   function Missile:spreadWings()
