@@ -45,6 +45,41 @@ if not ClientController then
   function client.tick(deltaTime)
     SoundManager:updateLoops()
 
+    -- Place tools
+    for _, playerId in ipairs(GetAllPlayers()) do
+      if GetPlayerTool(playerId) == ToolTabletId then
+        if playerId == GetLocalPlayer() and not GetBool("game.thirdperson") then
+          local time = GetTime()
+          local velocity = GetPlayerVelocity(playerId)
+          local speed = math.min(VecLength(velocity), 4)
+
+          local bobY = math.sin(time * 15.0) * 0.006 * speed
+          local bobX = math.cos(time * 5.0) * 0.003 * speed
+          local roll = math.sin(time * 5.0) * 0.1 * speed
+
+          local baseTransform = Transform(Vec(0.4, 0.1, -1.5), QuatEuler(-5, -10, 0))
+          local offset = Transform(Vec(bobX, bobY, 0), QuatEuler(0, 0, roll))
+          local transform = TransformToParentTransform(baseTransform, offset)
+
+          SetToolTransform(transform, 1.0, playerId)
+        else
+          --TODO Dis baka holds his hands straight. No point in this unless I find how to bend his elbow. Offset Z: -dot * 0.3
+          --local transform = GetPlayerTransformWithPitch(playerId)
+          --local forward = TransformToParentVec(transform, Vec(0, 0, -1))
+          --local up = Vec(0, 1, 0)
+          --local dot = VecDot(forward, up)
+          --DebugPrint(dot)
+
+          SetToolTransform(Transform(Vec(0.0, 0.5, -0.6), QuatEuler(-10, 0, 0)), 1.0, playerId)
+          SetToolHandPoseLocalTransform(
+            Transform(Vec(0.8, -0.7, -0.5)),
+            Transform(Vec(-0.8, -0.7, -0.5)),
+            playerId
+          )
+        end
+      end
+    end
+
     -- Tool input
     if GetPlayerTool() == ToolTabletId then
       if InputPressed("lmb") then
