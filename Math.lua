@@ -549,6 +549,22 @@ if not Math then
     return math.abs(v1 - v2)
   end
 
+  ---@param value number
+  ---@param target number
+  ---@param maxSpeed number
+  function Math.moveTowards(value, target, maxSpeed)
+    local diff = target - value
+    if math.abs(diff) <= maxSpeed then
+      return target
+    end
+
+    if diff > 0 then
+      return value + maxSpeed
+    end
+
+    return value - maxSpeed
+  end
+
   ---Rotates transform around a pivot point
   ---@param transform Transform Transform to rotate
   ---@param pivot Vec Pivot point

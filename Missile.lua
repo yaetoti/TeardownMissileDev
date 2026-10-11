@@ -30,6 +30,8 @@ if not Missile then
   Missile.CAMERA_OFFSET = Vec3.new(0, 1, 6.0)
   Missile.MASS = 800
   Missile.FIN_PIVOT_SIZE = 0.3
+  Missile.FIN_MAX_ANGLE = 25.0
+  Missile.FIN_ROTATION_SPEED = 360.0
 
   function Missile.new()
     local obj = {
@@ -158,6 +160,11 @@ if not Missile then
     self.finAngleTR = 0.0
     self.finAngleBL = 0.0
     self.finAngleBR = 0.0
+
+    self.finAngleTargetTL = 0.0
+    self.finAngleTargetTR = 0.0
+    self.finAngleTargetBL = 0.0
+    self.finAngleTargetBR = 0.0
   end
 
   function Missile:_updateBasis()
@@ -186,14 +193,16 @@ if not Missile then
     DebugWatch("yaw", yaw)
     DebugWatch("roll", roll)
 
-    local maxAngle = 25
     local s = 0.7
-    self.finAngleTL = (roll + s * (pitch + yaw)) * maxAngle
-    self.finAngleTR = (roll + s * (-pitch + yaw)) * maxAngle
-    self.finAngleBL = (roll + s * (pitch - yaw)) * maxAngle
-    self.finAngleBR = (roll + s * (-pitch - yaw)) * maxAngle
+    self.finAngleTargetTL = (roll + s * (pitch + yaw)) * Missile.FIN_MAX_ANGLE
+    self.finAngleTargetTR = (roll + s * (-pitch + yaw)) * Missile.FIN_MAX_ANGLE
+    self.finAngleTargetBL = (roll + s * (pitch - yaw)) * Missile.FIN_MAX_ANGLE
+    self.finAngleTargetBR = (roll + s * (-pitch - yaw)) * Missile.FIN_MAX_ANGLE
 
-
+    self.finAngleTL = Math.moveTowards(self.finAngleTL, self.finAngleTargetTL, Missile.FIN_ROTATION_SPEED * deltaTime)
+    self.finAngleTR = Math.moveTowards(self.finAngleTR, self.finAngleTargetTR, Missile.FIN_ROTATION_SPEED * deltaTime)
+    self.finAngleBL = Math.moveTowards(self.finAngleBL, self.finAngleTargetBL, Missile.FIN_ROTATION_SPEED * deltaTime)
+    self.finAngleBR = Math.moveTowards(self.finAngleBR, self.finAngleTargetBR, Missile.FIN_ROTATION_SPEED * deltaTime)
 
     -- === Set stabilizers visual rotation ===
     local finsData = {
@@ -240,16 +249,17 @@ if not Missile then
     local AIR_DENSITY = 1.22 -- TODO min max
 
     local AREA_WING_TOP = 4.0
-    local CL_ALPHA_WING = 3.5
+    local CL_ALPHA_WING = 2.5
     local CD_WING = 1.0
 
     --local WINGS_POS = Vec3.new(0, self.wingsOffsetY, 0)
     --local WINGS_POS = Vec3.new(0, self.scale * 8, self.scale * 10)
-    local WINGS_POS = Vec3.new(0, self.scale * 8, -self.scale * 3)
+    --local WINGS_POS = Vec3.new(0, self.scale * 8, -self.scale * 3)
+    local WINGS_POS = Vec3.new(0, self.scale * 8, 0)
     local WINGS_SIZE = self.scale * 40
 
     local AREA_FIN = 0.5
-    local CL_ALPHA_FIN = 3.5
+    local CL_ALPHA_FIN = 1.0
     local CD_FIN = 1.0
 
     local AREA_BODY_SIDE = 10.0
