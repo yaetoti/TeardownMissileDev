@@ -65,7 +65,22 @@ if not ClientController then
 
       -- TODO make a separate state on server
       if InputPressed("rmb") then
-        debugDetach = not debugDetach
+        if client.isControllingMissile then
+          debugDetach = not debugDetach
+        else
+          -- Set target marker
+          local cameraTransform = GetCameraTransform()
+          local cameraForward = Math.FORWARD:fromTransformVec(cameraTransform)
+          local hit, dist, normal, shape = QueryRaycast(cameraTransform.pos, cameraForward, 10000)
+
+          if hit then
+            client.targetPos = VecAdd(cameraTransform.pos, VecScale(cameraForward, dist))
+            client.PlaySound("marker_success")
+          else
+            client.targetPos = nil
+            client.PlaySound("marker_fail")
+          end
+        end
       end
 
       -- TODO make a separate state on server
@@ -160,7 +175,7 @@ if not ClientController then
       local thickness = 2
       local color = dist > 0 and Vec(1, 1, 1) or Vec(0.8, 0.6, 0.6)
 
-      UiColor(color[1], color[2], color[3], 0.5)
+      UiColor(color[1], color[2], color[3], 0.1)
 
       -- Invert coords when behind
       if dist <= 0 then

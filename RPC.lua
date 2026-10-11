@@ -51,7 +51,11 @@ if not RPC then
     client.missileId = missileId
     client.missileBody = missileBody
 
-    -- TODO how to detect that body is already destroyed?
+    debugDetach = false
+    debugFreeCamera = false
+    debugFreeCameraRot = Quat()
+
+    -- TODO detect that body is already destroyed?
   end
 
 

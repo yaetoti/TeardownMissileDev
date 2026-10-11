@@ -20,6 +20,8 @@ if not SoundManager then
   function SoundManager:init()
     client.sounds = {
       wings = LoadSound("MOD/snd/wings.ogg", 10),
+      marker_success = LoadSound("MOD/snd/marker_success.ogg", 10),
+      marker_fail = LoadSound("MOD/snd/marker_fail.ogg", 10),
     }
 
     client.loops = {
@@ -68,6 +70,14 @@ if not SoundManager then
     registerVolume = registerVolume or true
     pitch = pitch or 1.0
     PlaySound(client.sounds[soundId], pos)
+  end
+
+  function client.PlaySound(soundId, pos, volume, registerVolume, pitch)
+    pos = pos or GetPlayerTransform().pos
+    volume = volume or 1.0
+    registerVolume = registerVolume or true
+    pitch = pitch or 1.0
+    PlaySound(client.sounds[soundId], pos, volume, registerVolume, pitch)
   end
 
   ---@param name string Name of the loop
