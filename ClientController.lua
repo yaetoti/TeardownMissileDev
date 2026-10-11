@@ -204,6 +204,19 @@ if not ClientController then
       UiPop()
     end
 
+    -- === Draw horizon line ===
+
+    -- === TODO Noise ===
+    --noiseTimer = noiseTimer or 0
+    --noiseTimer = noiseTimer - GetTimeStep()
+    --if noiseTimer <= 0 then
+    --  noiseTimer = GetRandomFloat(0.01, 0.05)
+    --  noiseId = GetRandomInt(1, 4)
+    --end
+    --
+    --UiImage("MOD/img/noise_"..noiseId..".png", 0, 0, 1920, 1080)
+
+
     -- === Draw controls widget ===
     client.controlsWidget.pitch = client.pitch
     client.controlsWidget.yaw = client.yaw

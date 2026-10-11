@@ -355,12 +355,13 @@ if not Missile then
       localForce = localForce + fLiftRightWing + fLiftLeftWing + fDragRightWing + fDragLeftWing
       torque = torque + tLiftRightWing + tLiftLeftWing + tDragRightWing + tDragLeftWing
 
-      Debug.PosInTransform(self.transform, WINGS_POS)
-      Debug.LineInTransform(self.transform, WINGS_POS, rightVec)
-      Debug.LineInTransform(self.transform, WINGS_POS, leftVec)
-
-      Debug.VecInTransform(self.transform, rightVec, fLiftRightWing)
-      Debug.VecInTransform(self.transform, leftVec, fLiftLeftWing)
+      -- TODO debug
+      --Debug.PosInTransform(self.transform, WINGS_POS)
+      --Debug.LineInTransform(self.transform, WINGS_POS, rightVec)
+      --Debug.LineInTransform(self.transform, WINGS_POS, leftVec)
+      --
+      --Debug.VecInTransform(self.transform, rightVec, fLiftRightWing)
+      --Debug.VecInTransform(self.transform, leftVec, fLiftLeftWing)
     end
 
     -- Fins
@@ -415,7 +416,8 @@ if not Missile then
       self.transform.rot = QuatRotateQuat(self.transform.rot, deltaRotation)
     end
 
-    Debug.Vec(self.transform.pos, self.velocity)
+    -- TODO debug
+    -- Debug.Vec(self.transform.pos, self.velocity)
 
     -- === Update body basis ===
     self:_updateBasis()
