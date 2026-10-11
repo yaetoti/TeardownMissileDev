@@ -39,6 +39,8 @@ if not ClientController then
   end
 
   function client.tick(deltaTime)
+    SoundManager:updateLoops()
+
     -- Tool input
     if GetPlayerTool() == ToolTabletId then
       if InputPressed("lmb") then

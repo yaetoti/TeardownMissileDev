@@ -174,6 +174,9 @@ if not Missile then
     self.finAngleTargetTR = 0.0
     self.finAngleTargetBL = 0.0
     self.finAngleTargetBR = 0.0
+
+    -- Effects
+    self.engineLoop = server.CreateLoop("engine", self.transform.pos, 0, false, 1.0)
   end
 
   function Missile:_updateBasis()
@@ -250,10 +253,15 @@ if not Missile then
 
         ParticleType("plain")
         ParticleRadius(self.propulsion * 0.3 + 0.1, 1.0)
-        SpawnParticle(Missile.NOZZLE_OFFSET:fromTransformPos(self.transform), velocity, 0.5)
+        SpawnParticle(Missile.NOZZLE_OFFSET:fromTransformPos(self.transform), velocity, 2)
       end
     end
 
+
+
+    -- === Update music effects ===
+    shared.soundLoops[self.engineLoop].pos = self.transform.pos
+    shared.soundLoops[self.engineLoop].volume = self.propulsion
 
     ---- === Draw debug axes ===
     --Debug.VecInTransform(self.transform, self.finPivotPosTL, self.finPivotDirTL)
@@ -263,10 +271,6 @@ if not Missile then
   end
 
   function Missile:_updateMovement(deltaTime)
-    -- TODO test
-    self:_updateBasis()
-    SetBodyTransform(self.entities[1], self.transform)
-
     -- Parameters
     local THRUST = 8000
     local AIR_DENSITY = 1.22 -- TODO min max
@@ -293,10 +297,6 @@ if not Missile then
     local INERTIA = Vec3.new(2000, 2000, 500)
     local TORQUE_DAMPING = Vec3.new(400, 400, 100)
 
-    -- Input
-    -- TODO replace with self.var
-    local wingsSpreading = self.wingsSpreading
-
     -- Pre-calculated
     local velocityDir, velocity = self.velocity:normalize()
     local localVelocityVec = self.velocity:toBasis(self.right, self.up, self.forward)
@@ -304,11 +304,10 @@ if not Missile then
 
     -- TODO relative velocity: wind
     -- TODO debug
-    DebugWatch("Position", self.transform.pos)
-    DebugWatch("Velocity", self.velocity)
-    DebugWatch("Local velocity", localVelocityVec)
-    DebugWatch("Speed", velocity)
-
+    --DebugWatch("Position", self.transform.pos)
+    --DebugWatch("Velocity", self.velocity)
+    --DebugWatch("Local velocity", localVelocityVec)
+    --DebugWatch("Speed", velocity)
 
 
     -- === Forces ===
@@ -336,14 +335,14 @@ if not Missile then
     localForce = localForce + fLiftBody + fFrontDrag + fTopDrag + fSideDrag
 
     -- Main wings
-    if wingsSpreading > 0.1 then
-      local rightVec = WINGS_POS + Math.RIGHT * WINGS_SIZE * wingsSpreading
-      local leftVec = WINGS_POS - Math.RIGHT * WINGS_SIZE * wingsSpreading
+    if self.wingsSpreading > 0.1 then
+      local rightVec = WINGS_POS + Math.RIGHT * WINGS_SIZE * self.wingsSpreading
+      local leftVec = WINGS_POS - Math.RIGHT * WINGS_SIZE * self.wingsSpreading
       local rightWingVelocity = Physics.PointVelocity(rightVec, localVelocityVec, self.angularVelocity)
       local leftWingVelocity = Physics.PointVelocity(leftVec, localVelocityVec, self.angularVelocity)
 
-      local fLiftRightWing = Physics.CalculateLift(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.RIGHT, Math.UP) * wingsSpreading
-      local fLiftLeftWing = Physics.CalculateLift(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, -Math.RIGHT, Math.UP) * wingsSpreading
+      local fLiftRightWing = Physics.CalculateLift(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.RIGHT, Math.UP) * self.wingsSpreading
+      local fLiftLeftWing = Physics.CalculateLift(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, -Math.RIGHT, Math.UP) * self.wingsSpreading
       local tLiftRightWing = rightVec:cross(fLiftRightWing)
       local tLiftLeftWing = leftVec:cross(fLiftLeftWing)
 
@@ -418,10 +417,10 @@ if not Missile then
     Debug.Vec(self.transform.pos, self.velocity)
 
     -- === Update body basis ===
-    --self:_updateBasis()
+    self:_updateBasis()
 
     -- === Apply transform ===
-    --SetBodyTransform(self.entities[1], self.transform)
+    SetBodyTransform(self.entities[1], self.transform)
   end
 
   function Missile:spreadWings()
@@ -449,6 +448,8 @@ if not Missile then
       return
     end
 
+    -- TODO destroy method
+
     local explodePoint = TransformToParentPoint(self.transform, Missile.NOSE_OFFSET)
 
 
@@ -472,6 +473,9 @@ if not Missile then
 
     -- Delete body
     Delete(self.entities[1])
+
+    -- Delete effects
+    server.DeleteLoop(self.engineLoop)
 
     self.exploded = true
   end
