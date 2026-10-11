@@ -27,11 +27,15 @@ if not Missile then
 
   Missile.EXPLOSION_STRENGTH = 4.0
   Missile.NOSE_OFFSET = Vec3.new(0, 0, -2.5)
+  Missile.NOZZLE_OFFSET = Vec3.new(0, 0, 3.0)
   Missile.CAMERA_OFFSET = Vec3.new(0, 1, 6.0)
+
   Missile.MASS = 800
   Missile.FIN_PIVOT_SIZE = 0.3
   Missile.FIN_MAX_ANGLE = 25.0
   Missile.FIN_ROTATION_SPEED = 360.0
+
+  Missile.SMOKE_DELAY = 2.0
 
   function Missile.new()
     local obj = {
@@ -60,6 +64,9 @@ if not Missile then
       finTransformTR = nil,
       finTransformBL = nil,
       finTransformBR = nil,
+
+      -- Effects
+      smokeTimer = 0.0,
 
       -- State
       wingsRotation = Missile.WINGS_FOLDED_ROTATION,
@@ -232,6 +239,19 @@ if not Missile then
     end
 
 
+    -- === Update particles ===
+    if self.propulsionInput > Math.EPSILON then
+      self.smokeTimer = self.smokeTimer + deltaTime
+      if self.smokeTimer > 0.02 * (1.1 - self.propulsionInput) then
+        self.smokeTimer = 0.0
+
+        ParticleType("plain")
+        ParticleRadius(self.propulsionInput * 0.3 + 0.1, 1.0)
+        SpawnParticle(Missile.NOZZLE_OFFSET:fromTransformPos(self.transform), -self.velocity, 0.5)
+      end
+    end
+
+
     ---- === Draw debug axes ===
     --Debug.VecInTransform(self.transform, self.finPivotPosTL, self.finPivotDirTL)
     --Debug.VecInTransform(self.transform, self.finPivotPosTR, self.finPivotDirTR)
@@ -256,7 +276,8 @@ if not Missile then
     --local WINGS_POS = Vec3.new(0, self.scale * 8, self.scale * 10)
     --local WINGS_POS = Vec3.new(0, self.scale * 8, -self.scale * 3)
     local WINGS_POS = Vec3.new(0, self.scale * 8, 0)
-    local WINGS_SIZE = self.scale * 40
+    --local WINGS_SIZE = self.scale * 40
+    local WINGS_SIZE = self.scale * 30
 
     local AREA_FIN = 0.5
     local CL_ALPHA_FIN = 1.0
