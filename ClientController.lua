@@ -50,13 +50,21 @@ if not ClientController then
         if playerId == GetLocalPlayer() and not GetBool("game.thirdperson") then
           local time = GetTime()
           local velocity = GetPlayerVelocity(playerId)
+          local cameraTransform = GetPlayerCameraTransform()
           local speed = math.min(VecLength(velocity), 4)
 
           local bobY = math.sin(time * 15.0) * 0.006 * speed
           local bobX = math.cos(time * 5.0) * 0.003 * speed
           local roll = math.sin(time * 5.0) * 0.1 * speed
 
-          local baseTransform = Transform(Vec(0.4, 0.1, -1.5), QuatEuler(-5, -10, 0))
+          local range = 1.5
+          local tabletLocation = Vec3.new(0.4, 0.1, -range)
+          hit, dist = QueryRaycast(cameraTransform.pos, tabletLocation:fromTransformVec(cameraTransform), range, 0.1)
+          if hit then
+            tabletLocation[3] = -math.min(dist, range)
+          end
+
+          local baseTransform = Transform(tabletLocation, QuatEuler(-5, -10, 0))
           local offset = Transform(Vec(bobX, bobY, 0), QuatEuler(0, 0, roll))
           local transform = TransformToParentTransform(baseTransform, offset)
 
