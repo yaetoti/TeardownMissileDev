@@ -18,8 +18,7 @@ if not ClientController then
   client.missileBody = 0
 
   -- Target marker
-  --client.targetPos = nil
-  client.targetPos = Vec()
+  client.targetPos = nil
 
   -- Controls
   client.pitchSensitivity = 0.5
@@ -81,7 +80,7 @@ if not ClientController then
     end
 
     -- Tool input
-    if GetPlayerTool() == ToolTabletId then
+    if GetPlayerCanUseTool() and GetPlayerTool() == ToolTabletId then
       if InputPressed("lmb") then
         -- Create missile
         if not client.isControllingMissile and not client.activeRequests.createMissile then
@@ -112,7 +111,6 @@ if not ClientController then
             client.targetPos = VecAdd(cameraTransform.pos, VecScale(cameraForward, dist))
             client.PlaySound("marker_success")
           else
-            client.targetPos = nil
             client.PlaySound("marker_fail")
           end
         end
@@ -120,7 +118,12 @@ if not ClientController then
 
       -- TODO make a separate state on server
       if InputPressed("mmb") then
-        debugFreeCamera = not debugFreeCamera
+        if client.isControllingMissile and not debugDetach then
+          debugFreeCamera = not debugFreeCamera
+        else
+          client.targetPos = nil
+          client.PlaySound("marker_fail")
+        end
       end
 
       -- Handle input
@@ -217,7 +220,7 @@ if not ClientController then
 
       -- Rect
       if dist > 0 then
-        -- w/o lines overlapping
+        -- w/o lines overlapping so that transparency works properly
         local function corner(x, y, dx, dy)
           local t1 = dy >= 0 and (thickness) or (-thickness)
           local t2 = dx >= 0 and (thickness) or (-thickness)
@@ -251,9 +254,73 @@ if not ClientController then
       UiPop()
     end
 
+    -- TODO check if we are not in computer when we use tablet
     -- === Draw horizon line ===
+    local function drawHorizon()
+      -- The Great Horizon Rendering Explanation
 
-    -- === TODO Noise ===
+      -- We draw a straight horizontal line for the horizon
+      -- When we change pitch - line moves away from the center
+      -- When we change roll - line rotates around the center
+
+      -- Offset = normal to the horizon line in screen space
+      -- For canonical line equation Ax + By = C, the normal is (A, B)
+
+      -- We can define the horizon line through pixel vector and vector UP, perpendicular to the horizon
+      -- Let (x, y, -focalLength) be a vector to the pixel on the near plane (in camera space)
+      -- localUp = (lX, lY, lZ) - vector, perpendicular to the horizon (also camera space)
+      -- Then line goes where (x, y, -focalLength) dot (lX, lY, lZ) = 0 - when vectors are perpendicular
+
+      -- x*lX + y*lY - focalLength*lZ = 0
+      -- x*lX + y*lY = focalLength*lZ
+      -- where A = lX, B = lY, C = focalLength * lZ
+      -- But direction (A, B) is in camera space on the near plane, to get offset in pixels we need to find it's length in pixels
+
+      -- Let (x0, y0) be the point on the screen that lies on both line and normal
+      -- Then x0 = kA, y0 = kB, let's find k
+      -- A(kA) + B(kB) = C
+      -- k(A^2 + B^2) = C
+      -- k = C / (A^2 + B^2)
+
+      local transform = GetCameraTransform()
+      local localUp = Math.UP:toTransformVec(transform)
+
+      if localUp[3] > 0.99 then
+        -- Looking along world Y - infinite line distance
+        return
+      end
+
+      local fov = GetInt("options.gfx.fov")
+      local focalLength = (width * 0.5) / math.tan(math.rad(fov / 2))
+
+      local A = localUp[1]
+      local B = localUp[2]
+      local C = localUp[3] * focalLength
+      local k = C / (A * A + B * B)
+
+      local offsetX = k * A
+      local offsetY = -k * B
+      local roll = math.deg(math.atan2(-localUp[1], localUp[2]))
+
+      UiPush()
+
+      UiTranslate(width * 0.5 + offsetX, height * 0.5 + offsetY)
+      UiRotate(roll)
+      UiAlign("center middle")
+      UiColor(0.3, 1, 0.3, 0.5)
+      UiRect(width * 1.5, 2)
+
+      UiTranslate(0, 2)
+      UiColor(0.2, 0.7, 0.2, 0.5)
+      UiRect(width * 1.5, 1)
+
+      UiPop()
+    end
+
+    drawHorizon()
+
+    -- === Noise ===
+    -- TODO annoying. Make more different images or remove
     --noiseTimer = noiseTimer or 0
     --noiseTimer = noiseTimer - GetTimeStep()
     --if noiseTimer <= 0 then

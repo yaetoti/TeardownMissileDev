@@ -267,6 +267,10 @@ if not Vec3 then
     )
   end
 
+  function Vec3:values()
+    return self[1], self[2], self[3]
+  end
+
   function Vec3:invertX()
     return Vec3.new(-self.x, self.y, self.z)
   end
