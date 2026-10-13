@@ -92,7 +92,7 @@ if not ClientController then
     end
 
     -- Tool input
-    if GetPlayerCanUseTool() and GetPlayerTool() == ToolTabletId then
+    if GetPlayerCanUseTool() and GetPlayerGrabBody() == 0 and GetPlayerTool() == ToolTabletId then
       if InputPressed("lmb") then
         -- Create missile
         if client.isControllingMissile then
