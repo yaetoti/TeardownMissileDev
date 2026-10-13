@@ -1,27 +1,23 @@
-#version 2
+Utils = {}
 
-if not Utils then
-  Utils = {}
-
-  function Utils.shallowCopy(obj)
-    local copy = {}
-    for k, v in pairs(obj) do
-      copy[k] = v
-    end
-
-    return copy
+function Utils.shallowCopy(obj)
+  local copy = {}
+  for k, v in pairs(obj) do
+    copy[k] = v
   end
 
-  function Utils.deepCopy(obj)
-    if type(obj) ~= "table" then
-      return obj
-    end
+  return copy
+end
 
-    local copy = {}
-    for k, v in pairs(obj) do
-      copy[deepCopy(k)] = deepCopy(v)
-    end
-
-    return copy
+function Utils.deepCopy(obj)
+  if type(obj) ~= "table" then
+    return obj
   end
+
+  local copy = {}
+  for k, v in pairs(obj) do
+    copy[deepCopy(k)] = deepCopy(v)
+  end
+
+  return copy
 end
