@@ -48,16 +48,13 @@ if not RPC then
     end
 
     client.isControllingMissile = true
+    client.isDetached = false
     client.missileId = missileId
     client.missileBody = missileBody
 
-    debugDetach = false
     debugFreeCamera = false
     debugFreeCameraRot = Quat()
-
-    -- TODO detect that body is already destroyed?
   end
-
 
 
 
@@ -102,6 +99,76 @@ if not RPC then
     client.yaw = 0.0
     client.roll = 0.0
     client.propulsion = 0.0
+  end
+
+
+
+  function client.detachRequestServerRpc()
+    if client.activeRequests.detach or not client.isControllingMissile or client.isDetached then
+      return
+    end
+
+    client.activeRequests.detach = true
+    ServerCall("server.detachRequestServerRpc", GetLocalPlayer())
+  end
+
+  function server.detachRequestServerRpc(clientId)
+    local player = server.players[clientId]
+    if not player.isControllingMissile or player.isDetached then
+      server.detachResponseServerRpc(clientId, false)
+      return
+    end
+
+    server.players[clientId].isDetached = true
+    server.detachResponseServerRpc(clientId, true)
+  end
+
+  function server.detachResponseServerRpc(clientId, approval)
+    ClientCall(clientId, "client.detachResponseServerRpc", approval)
+  end
+
+  function client.detachResponseServerRpc(approval)
+    client.activeRequests.detach = false
+    if not approval then
+      return
+    end
+
+    client.isDetached = true
+  end
+
+
+
+  function client.reattachRequestServerRpc()
+    if client.activeRequests.detach or not client.isControllingMissile or not client.isDetached then
+      return
+    end
+
+    client.activeRequests.reattach = true
+    ServerCall("server.reattachRequestServerRpc", GetLocalPlayer())
+  end
+
+  function server.reattachRequestServerRpc(clientId)
+    local player = server.players[clientId]
+    if not player.isControllingMissile or not player.isDetached then
+      server.reattachResponseServerRpc(clientId, false)
+      return
+    end
+
+    server.players[clientId].isDetached = false
+    server.reattachResponseServerRpc(clientId, true)
+  end
+
+  function server.reattachResponseServerRpc(clientId, approval)
+    ClientCall(clientId, "client.reattachResponseServerRpc", approval)
+  end
+
+  function client.reattachResponseServerRpc(approval)
+    client.activeRequests.reattach = false
+    if not approval then
+      return
+    end
+
+    client.isDetached = false
   end
 
 

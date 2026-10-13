@@ -9,6 +9,8 @@ if not ClientController then
   client.activeRequests = {
     createMissile = false,
     explodeMissile = false,
+    detach = false,
+    reattach = false,
   }
 
   -- State
@@ -91,13 +93,14 @@ if not ClientController then
     if GetPlayerCanUseTool() and GetPlayerTool() == ToolTabletId then
       if InputPressed("lmb") then
         -- Create missile
-        if not client.isControllingMissile and not client.activeRequests.createMissile then
+        if client.isControllingMissile then
+          if client.isDetached then
+            client.reattachRequestServerRpc()
+          else
+            client.explodeMissileServerRpc(client.missileId)
+          end
+        else
           client.createMissileServerRpc()
-        end
-
-        -- Explode missile
-        if client.isControllingMissile and not client.activeRequests.explodeMissile then
-          client.explodeMissileServerRpc(client.missileId)
         end
       end
 
@@ -105,10 +108,9 @@ if not ClientController then
         client.ToggleWingsDeploymentServerRpc()
       end
 
-      -- TODO make a separate state on server
       if InputPressed("rmb") then
-        if client.isControllingMissile then
-          debugDetach = not debugDetach
+        if client.isControllingMissile and not client.isDetached then
+          client.detachRequestServerRpc()
         else
           -- Set target marker
           local cameraTransform = GetCameraTransform()
@@ -124,9 +126,8 @@ if not ClientController then
         end
       end
 
-      -- TODO make a separate state on server
       if InputPressed("mmb") then
-        if client.isControllingMissile and not debugDetach then
+        if client.isControllingMissile and not client.isDetached then
           debugFreeCamera = not debugFreeCamera
         else
           client.targetPos = nil
@@ -134,74 +135,77 @@ if not ClientController then
         end
       end
 
-      -- Handle input
-      -- TODO remove debugFreeCamera or make it a feature
-      if client.isControllingMissile and not debugFreeCamera then
-        -- Get input
-        local pitchInput = InputValue("cameray") * client.pitchSensitivity
-        local yawInput = InputValue("camerax") * client.yawSensitivity
-        local propulsionInput = InputValue("mousewheel") * client.propulsionSensitivity
-        local rollInput = 0.0
 
-        if (InputDown("shift")) then
-          propulsionInput = propulsionInput * 0.1
 
-          -- Update roll (precise)
-          if InputDown("left") then rollInput = rollInput - client.rollSensitivity * deltaTime end
-          if InputDown("right") then rollInput = rollInput + client.rollSensitivity * deltaTime end
-          client.roll = Math.clamp(client.roll + rollInput, -1, 1)
-        else
-          -- Update roll (abrupt)
-          if InputDown("left") then rollInput = rollInput - 1 end
-          if InputDown("right") then rollInput = rollInput + 1 end
-          --if Math.distance(rollInput, 0) < Math.EPSILON and (InputReleased("left") or InputReleased("right")) then
-          if Math.distance(rollInput, 0) < Math.EPSILON then
-            client.roll = 0
+      if client.isControllingMissile and not client.isDetached then
+        -- Update input
+        if not debugFreeCamera then
+          -- TODO remove debugFreeCamera or make it a feature
+          -- Get input
+          local pitchInput = InputValue("cameray") * client.pitchSensitivity
+          local yawInput = InputValue("camerax") * client.yawSensitivity
+          local propulsionInput = InputValue("mousewheel") * client.propulsionSensitivity
+          local rollInput = 0.0
+
+          if (InputDown("shift")) then
+            propulsionInput = propulsionInput * 0.1
+
+            -- Update roll (precise)
+            if InputDown("left") then rollInput = rollInput - client.rollSensitivity * deltaTime end
+            if InputDown("right") then rollInput = rollInput + client.rollSensitivity * deltaTime end
+            client.roll = Math.clamp(client.roll + rollInput, -1, 1)
           else
-            --client.roll = Math.clamp(client.roll + rollInput, -1, 1)
-            client.roll = Math.clamp(rollInput, -1, 1)
+            -- Update roll (abrupt)
+            if InputDown("left") then rollInput = rollInput - 1 end
+            if InputDown("right") then rollInput = rollInput + 1 end
+            --if Math.distance(rollInput, 0) < Math.EPSILON and (InputReleased("left") or InputReleased("right")) then
+            if Math.distance(rollInput, 0) < Math.EPSILON then
+              client.roll = 0
+            else
+              --client.roll = Math.clamp(client.roll + rollInput, -1, 1)
+              client.roll = Math.clamp(rollInput, -1, 1)
+            end
           end
+
+          -- Update controls
+          client.pitch = Math.clamp(client.pitch + pitchInput, -1, 1)
+          client.yaw = Math.clamp(client.yaw + yawInput, -1, 1)
+          client.propulsion = Math.clamp01(client.propulsion + propulsionInput)
+
+          -- Send data to the server
+          client.SetInputServerRpc(client.propulsion, client.pitch, client.yaw, client.roll)
         end
 
-        -- Update controls
-        client.pitch = Math.clamp(client.pitch + pitchInput, -1, 1)
-        client.yaw = Math.clamp(client.yaw + yawInput, -1, 1)
-        client.propulsion = Math.clamp01(client.propulsion + propulsionInput)
+        -- Update camera
+        if not debugMissile and IsHandleValid(client.missileBody) then
+          local missileTransform = GetBodyTransform(client.missileBody)
 
-        -- Send data to the server
-        client.SetInputServerRpc(client.propulsion, client.pitch, client.yaw, client.roll)
+          local offsetVec = Missile.CAMERA_OFFSET:fromTransformVec(missileTransform)
+          local rot = missileTransform.rot
+
+          if debugFreeCamera then
+            local inputX = InputValue("camerax")
+            local inputY = InputValue("cameray")
+
+            local deltaRot = QuatEuler(-inputY * 30, -inputX * 30, 0)
+            debugFreeCameraRot = QuatRotateQuat(debugFreeCameraRot, deltaRot)
+
+            rot = QuatRotateQuat(missileTransform.rot, debugFreeCameraRot)
+            offsetVec = QuatRotateVec(rot, Missile.CAMERA_OFFSET)
+          else
+            debugFreeCameraRot = Quat()
+          end
+
+          local newTransform = Transform(VecAdd(missileTransform.pos, offsetVec), rot)
+
+          SetCameraTransform(newTransform)
+        end
       end
-    end
-
-    -- TODO rewrite camera rotation
-    if not debugDetach and not debugMissile and client.isControllingMissile and IsHandleValid(client.missileBody) then
-      -- Handle camera
-      local missileTransform = GetBodyTransform(client.missileBody)
-
-      local offsetVec = Missile.CAMERA_OFFSET:fromTransformVec(missileTransform)
-      local rot = missileTransform.rot
-
-      if debugFreeCamera then
-        local inputX = InputValue("camerax")
-        local inputY = InputValue("cameray")
-
-        local deltaRot = QuatEuler(-inputY * 30, -inputX * 30, 0)
-        debugFreeCameraRot = QuatRotateQuat(debugFreeCameraRot, deltaRot)
-
-        rot = QuatRotateQuat(missileTransform.rot, debugFreeCameraRot)
-        offsetVec = QuatRotateVec(rot, Missile.CAMERA_OFFSET)
-      else
-        debugFreeCameraRot = Quat()
-      end
-
-      local newTransform = Transform(VecAdd(missileTransform.pos, offsetVec), rot)
-
-      SetCameraTransform(newTransform)
     end
   end
 
   function client.draw()
-    if not client.isControllingMissile then
+    if not client.isControllingMissile or client.isDetached then
       return
     end
 

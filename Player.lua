@@ -5,8 +5,8 @@ if not Player then
   function Player.new()
     obj = {
       isControllingMissile = false,
+      isDetached = false,
       controlledMissileId = 0,
-      -- TODO store body handle?
     }
     return setmetatable(obj, Player)
   end

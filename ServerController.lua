@@ -40,7 +40,7 @@ if not ServerController then
 
     -- Update players
     for playerId, player in pairs(server.players) do
-      if player.isControllingMissile then
+      if player.isControllingMissile and not player.isDetached then
         if not debugMissile then
           DisablePlayerInput(playerId)
         end
