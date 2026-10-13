@@ -33,7 +33,13 @@ if not RPC then
 
     -- Set callback
     local function callback()
-      server.missileExplodedClientRpc(clientId)
+      local player = server.players[clientId]
+      if player ~= nil then
+        player.isControllingMissile = false
+        player.isDetached = false
+
+        server.missileExplodedClientRpc(clientId)
+      end
     end
 
     missile.onDestroyCallback = callback

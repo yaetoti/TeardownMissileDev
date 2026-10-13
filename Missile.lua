@@ -38,22 +38,23 @@ if not Missile then
   Missile.SMOKE_DELAY = 2.0
   Missile.PROPULSION_CHANGE_SPEED = 0.5
 
+  Missile.DETONATION_TIME = 0.2
+
   function Missile.new()
     local obj = {
       -- Entities
       entities = {},
 
-      -- State
+      -- Wings visual data
       scale = 1.0,
 
-      -- Wing data
       leftWing = nil,
       rightWing = nil,
       wingTransformLeft = nil,
       wingTransformRight = nil,
       wingsOffsetY = 0.0,
 
-      -- Fins data
+      -- Fins visual data
       finsOffsetX = 0.0,
       finsOffsetY = 0.0,
       finsOffsetZ = 0.0,
@@ -69,15 +70,21 @@ if not Missile then
       -- Effects
       smokeTimer = 0.0,
 
-      -- State
+      -- Wings state
       wingsRotation = Missile.WINGS_FOLDED_ROTATION,
       wingsTargetRotation = Missile.WINGS_FOLDED_ROTATION,
       wingsStateProgress = 1,
       wingsSpreading = 0,
       wingsState = Missile.WingsState.FOLDED,
 
+      -- Destroyed
       isDestroyed = false,
       onDestroyCallback = nil,
+
+      -- Explosion
+      isArmed = false,
+      shouldDetonate = false,
+      detonationTimer = 0.0,
 
       -- Physics
       transform = Transform(),
@@ -270,6 +277,42 @@ if not Missile then
     --Debug.VecInTransform(self.transform, self.finPivotPosTR, self.finPivotDirTR)
     --Debug.VecInTransform(self.transform, self.finPivotPosBL, self.finPivotDirBL)
     --Debug.VecInTransform(self.transform, self.finPivotPosBR, self.finPivotDirBR)
+
+
+    --- === Handle detonation ===
+    self:_checkDetonation()
+
+    if self.isArmed then
+      self.detonationTimer = self.detonationTimer - deltaTime
+      if self.detonationTimer < 0 then
+        self.shouldDetonate = true
+      end
+    end
+
+    if self.shouldDetonate then
+      self:explode()
+    end
+  end
+
+  function Missile:_checkDetonation()
+    local checkPos = Missile.NOZZLE_OFFSET:fromTransformPos(self.transform)
+    local checkDir = self.forward
+    local checkDist = (Missile.NOSE_OFFSET - Missile.NOZZLE_OFFSET):length()
+    local radius = 40 * self.scale
+
+    QueryRejectBody(self.entities[1])
+    local hit, dist, normal, shape = QueryRaycast(checkPos, checkDir, checkDist, radius)
+
+    if hit then
+      local hitPos = checkPos + checkDir * dist
+
+      MakeHole(hitPos, radius)
+
+      if not self.isArmed then
+        self.isArmed = true
+        self.detonationTimer = Missile.DETONATION_TIME
+      end
+    end
   end
 
   function Missile:_updateMovement(deltaTime)
