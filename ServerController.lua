@@ -51,7 +51,7 @@ if not ServerController then
     local markedForDestruction = {}
     for missileId, missile in pairs(server.missiles) do
       missile:update(deltaTime)
-      if missile.exploded then
+      if missile.isDestroyed then
         table.insert(markedForDestruction, missileId)
       end
     end

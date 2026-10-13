@@ -24,13 +24,19 @@ if not RPC then
       missile:spawn(Transform(Vec(0, 2, 6)))
     else
       missile:spawn(Transform(Vec(0, 80, 500 + missileId * 6)))
+      missile.velocity = missile.forward * 25
     end
-
-    --missile:spreadWings()
 
     -- Update status
     player.isControllingMissile = true
     player.controlledMissileId = missileId
+
+    -- Set callback
+    local function callback()
+      server.missileExplodedClientRpc(clientId)
+    end
+
+    missile.onDestroyCallback = callback
 
     -- Send confirmation and body
     server.createMissileResponseClientRpc(clientId, true, missileId, missile.entities[1])
@@ -58,6 +64,23 @@ if not RPC then
 
 
 
+  function server.missileExplodedClientRpc(clientId)
+    ClientCall(clientId, "client.missileExplodedClientRpc")
+  end
+
+  function client.missileExplodedClientRpc()
+    client.activeRequests.explodeMissile = false
+
+    client.isControllingMissile = false
+    client.isDetached = false
+    client.pitch = 0.0
+    client.yaw = 0.0
+    client.roll = 0.0
+    client.propulsion = 0.0
+  end
+
+
+
   function client.explodeMissileServerRpc(missileId)
     if not client.isControllingMissile or client.activeRequests.explodeMissile then
       return
@@ -78,27 +101,7 @@ if not RPC then
     missile:explode()
 
     player.isControllingMissile = false
-
-    -- Approve
-    server.explodeMissileResponseClientRpc(clientId, true)
-  end
-
-  function server.explodeMissileResponseClientRpc(clientId, approval)
-    ClientCall(clientId, "client.explodeMissileResponseClientRpc", approval)
-  end
-
-  function client.explodeMissileResponseClientRpc(approval)
-    client.activeRequests.explodeMissile = false
-    if not approval then
-      return
-    end
-
-    client.isControllingMissile = false
-    client.isDetached = false
-    client.pitch = 0.0
-    client.yaw = 0.0
-    client.roll = 0.0
-    client.propulsion = 0.0
+    player.isDetached = false
   end
 
 

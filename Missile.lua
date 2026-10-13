@@ -76,7 +76,8 @@ if not Missile then
       wingsSpreading = 0,
       wingsState = Missile.WingsState.FOLDED,
 
-      exploded = false,
+      isDestroyed = false,
+      onDestroyCallback = nil,
 
       -- Physics
       transform = Transform(),
@@ -100,7 +101,7 @@ if not Missile then
 
   function Missile:spawn(transform)
     -- Not reusable
-    if self.exploded then
+    if self.isDestroyed then
       return
     end
 
@@ -186,7 +187,7 @@ if not Missile then
   end
 
   function Missile:update(deltaTime)
-    if self.exploded then
+    if self.isDestroyed then
       return
     end
 
@@ -446,41 +447,37 @@ if not Missile then
     self.wingsState = Missile.WingsState.FOLDING
   end
 
-  function Missile:explode()
-    if self.exploded then
+  function Missile:destroy()
+    if self.isDestroyed then
       return
     end
 
-    -- TODO destroy method
+    -- Delete resources
+    Delete(self.entities[1])
+    server.DeleteLoop(self.engineLoop)
 
-    local explodePoint = TransformToParentPoint(self.transform, Missile.NOSE_OFFSET)
+    self.isDestroyed = true
 
+    -- Callback
+    if self.onDestroyCallback ~= nil then
+      self.onDestroyCallback()
+    end
+  end
 
+  function Missile:explode()
+    if self.isDestroyed then
+      return
+    end
 
-    -- TODO can be smoke or plain
-    --ParticleReset()
-    --ParticleType("smoke")
-    --ParticleColor(0.7, 0.6, 0.5)
-    --SpawnParticle(explodePoint, Vec(1, 1, 1), 10.0)
-    --
-    --ParticleReset()
-    --ParticleType("smoke")
-    --ParticleColor(0.7, 0.6, 0.5)
-    --SpawnParticle(explodePoint, Vec(1, 1, 1), 10.0)
+    --local explodePoint = TransformToParentPoint(self.transform, Missile.NOSE_OFFSET)
+    local explodePoint = self.transform.pos
 
     SpawnFire(explodePoint)
     Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
-    --Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
-
+    Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
     server.PlaySoundClientRpc(0, "explosion", explodePoint, 1.0)
 
-    -- Delete body
-    Delete(self.entities[1])
-
-    -- Delete effects
-    server.DeleteLoop(self.engineLoop)
-
-    self.exploded = true
+    self:destroy()
   end
 
   function Missile:_updateWingsSpreading(deltaTime)
