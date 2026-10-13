@@ -7,8 +7,6 @@
 
 -- TODO remove
 debugMissile = false
-debugDetach = false
-debugFreeCamera = false
 
 ToolTabletId = "tablet"
 

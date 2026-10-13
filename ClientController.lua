@@ -16,6 +16,8 @@ if not ClientController then
   -- State
   client.isControllingMissile = false
   client.isDetached = false
+  client.freeCameraEnabled = false
+  client.freeCameraRot = Quat()
   client.missileId = 0
   client.missileBody = 0
 
@@ -128,7 +130,8 @@ if not ClientController then
 
       if InputPressed("mmb") then
         if client.isControllingMissile and not client.isDetached then
-          debugFreeCamera = not debugFreeCamera
+          client.freeCameraEnabled = not client.freeCameraEnabled
+          client.freeCameraRot = Quat()
         else
           client.targetPos = nil
           client.PlaySound("marker_fail")
@@ -139,8 +142,8 @@ if not ClientController then
 
       if client.isControllingMissile and not client.isDetached then
         -- Update input
-        if not debugFreeCamera then
-          -- TODO remove debugFreeCamera or make it a feature
+        if not client.freeCameraEnabled then
+          -- TODO remove client.freeCameraEnabled or make it a feature
           -- Get input
           local pitchInput = InputValue("cameray") * client.pitchSensitivity
           local yawInput = InputValue("camerax") * client.yawSensitivity
@@ -183,17 +186,15 @@ if not ClientController then
           local offsetVec = Missile.CAMERA_OFFSET:fromTransformVec(missileTransform)
           local rot = missileTransform.rot
 
-          if debugFreeCamera then
+          if client.freeCameraEnabled then
             local inputX = InputValue("camerax")
             local inputY = InputValue("cameray")
 
             local deltaRot = QuatEuler(-inputY * 30, -inputX * 30, 0)
-            debugFreeCameraRot = QuatRotateQuat(debugFreeCameraRot, deltaRot)
+            client.freeCameraRot = QuatRotateQuat(client.freeCameraRot, deltaRot)
 
-            rot = QuatRotateQuat(missileTransform.rot, debugFreeCameraRot)
+            rot = QuatRotateQuat(missileTransform.rot, client.freeCameraRot)
             offsetVec = QuatRotateVec(rot, Missile.CAMERA_OFFSET)
-          else
-            debugFreeCameraRot = Quat()
           end
 
           local newTransform = Transform(VecAdd(missileTransform.pos, offsetVec), rot)
@@ -266,9 +267,9 @@ if not ClientController then
       UiPop()
     end
 
-    -- TODO check if we are not in computer when we use tablet
     -- === Draw horizon line ===
     local function drawHorizon()
+      -- TODO broken when not 16:9 for some reason
       -- The Great Horizon Rendering Explanation
 
       -- We draw a straight horizontal line for the horizon

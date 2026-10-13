@@ -52,8 +52,8 @@ if not RPC then
     client.missileId = missileId
     client.missileBody = missileBody
 
-    debugFreeCamera = false
-    debugFreeCameraRot = Quat()
+    client.freeCameraEnabled = false
+    client.freeCameraRot = Quat()
   end
 
 
