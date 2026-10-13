@@ -39,6 +39,19 @@ if not Missile then
   Missile.PROPULSION_CHANGE_SPEED = 0.5
 
   Missile.DETONATION_TIME = 0.2
+  Missile.PENETRATION_TABLE = {
+    ["foliage"] = 0.01,
+    ["glass"] = 0.1,
+    ["dirt"] = 0.1,
+    ["plaster"] = 0.1,
+    ["wood"] = 0.1,
+    ["brick"] = 0.1,
+    ["masonry"] = 0.1,
+    ["metal"] = 0.1,
+    ["heavymetal"] = 0.2,
+    ["rock"] = 1.0,
+    ["unphysical"] = 1.0,
+  }
 
   function Missile.new()
     local obj = {
@@ -82,9 +95,11 @@ if not Missile then
       onDestroyCallback = nil,
 
       -- Explosion
+      penetrationMode = false,
       isArmed = false,
       shouldDetonate = false,
       detonationTimer = 0.0,
+      penetration = 1.0,
 
       -- Physics
       transform = Transform(),
@@ -303,16 +318,35 @@ if not Missile then
     local radius = 30 * self.scale
 
     QueryRejectBody(self.entities[1])
-    local hit, dist, normal, shape = QueryRaycast(checkPos, checkDir, checkDist, radius)
+    --local hit, dist, normal, shape = QueryRaycast(checkPos, checkDir, checkDist, radius)
+    local hit, dist, normal, shape = QueryRaycast(checkPos, checkDir, checkDist)
 
     if hit then
       local hitPos = checkPos + checkDir * dist
+      local hasUnbreakableTag = HasTag(shape, "unbreakable")
 
       MakeHole(hitPos, radius, radius, radius)
 
-      if not self.isArmed then
-        self.isArmed = true
-        self.detonationTimer = Missile.DETONATION_TIME
+      if hasUnbreakableTag then
+        self.shouldDetonate = true
+      end
+
+      if self.penetrationMode then
+        -- Check materials
+        local material = GetShapeMaterialAtPosition(shape, hitPos)
+        if material ~= nil then
+          local penetrationLoss = Missile.PENETRATION_TABLE[material] or 0
+          self.penetration = self.penetration - penetrationLoss
+          if self.penetration <= 0 then
+            self.shouldDetonate = true
+          end
+        end
+      else
+        -- Start timer
+        if not self.isArmed then
+          self.isArmed = true
+          self.detonationTimer = Missile.DETONATION_TIME
+        end
       end
     end
   end
