@@ -294,11 +294,13 @@ if not Missile then
     end
   end
 
+  -- TODO mod is breaking saves
+
   function Missile:_checkDetonation()
     local checkPos = Missile.NOZZLE_OFFSET:fromTransformPos(self.transform)
     local checkDir = self.forward
     local checkDist = (Missile.NOSE_OFFSET - Missile.NOZZLE_OFFSET):length()
-    local radius = 40 * self.scale
+    local radius = 30 * self.scale
 
     QueryRejectBody(self.entities[1])
     local hit, dist, normal, shape = QueryRaycast(checkPos, checkDir, checkDist, radius)
@@ -306,7 +308,7 @@ if not Missile then
     if hit then
       local hitPos = checkPos + checkDir * dist
 
-      MakeHole(hitPos, radius)
+      MakeHole(hitPos, radius, radius, radius)
 
       if not self.isArmed then
         self.isArmed = true
