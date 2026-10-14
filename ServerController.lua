@@ -16,10 +16,6 @@ function server.init()
 end
 
 function server.tick(deltaTime)
-  DebugPrint("Math.UP:")
-  DebugPrint(getmetatable(Math.UP))
-  -- TODO so, metatables are stripped after load... Sad...
-
   -- Init connected players
   for _, playerId in ipairs(GetAddedPlayers()) do
     server.players[playerId] = Player.new()

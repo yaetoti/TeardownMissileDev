@@ -290,7 +290,7 @@ function Missile:update(deltaTime)
 
 
   --- === Handle detonation ===
-  self:_checkDetonation()
+  self:_checkDetonation(deltaTime)
 
   if self.isArmed then
     self.detonationTimer = self.detonationTimer - deltaTime
@@ -306,7 +306,7 @@ end
 
 -- TODO mod is breaking saves
 
-function Missile:_checkDetonation()
+function Missile:_checkDetonation(deltaTime)
   local checkPos = Missile.NOZZLE_OFFSET:fromTransformPos(self.transform)
   local checkDir = self.forward
   local checkDist = (Missile.NOSE_OFFSET - Missile.NOZZLE_OFFSET):length()
@@ -331,7 +331,7 @@ function Missile:_checkDetonation()
       local material = GetShapeMaterialAtPosition(shape, hitPos)
       if material ~= nil then
         local penetrationLoss = Missile.PENETRATION_TABLE[material] or 0
-        self.penetration = self.penetration - penetrationLoss
+        self.penetration = self.penetration - penetrationLoss * self.velocity:length() * deltaTime
         if self.penetration <= 0 then
           self.shouldDetonate = true
         end
