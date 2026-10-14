@@ -219,6 +219,21 @@ function client.draw()
   local width, height = UiWidth(), UiHeight()
 
   -- === Draw target marker ===
+  
+  -- w/o lines overlapping so that transparency works properly
+  local function corner(x, y, dx, dy, thickness)
+    local t1 = dy >= 0 and (thickness) or (-thickness)
+    local t2 = dx >= 0 and (thickness) or (-thickness)
+
+    UiPush()
+    UiTranslate(x, y)
+    UiRect(dx, t1)
+
+    UiTranslate(0, t1)
+    UiRect(t2, dy - t1)
+    UiPop()
+  end
+
   if client.targetPos ~= nil then
     UiPush()
 
@@ -229,7 +244,7 @@ function client.draw()
     local thickness = 2
     local color = dist > 0 and Vec(1, 1, 1) or Vec(0.8, 0.6, 0.6)
 
-    UiColor(color[1], color[2], color[3], 0.1)
+    UiColor(color[1], color[2], color[3], 0.15)
 
     -- Invert coords when behind
     if dist <= 0 then
@@ -239,24 +254,10 @@ function client.draw()
 
     -- Rect
     if dist > 0 then
-      -- w/o lines overlapping so that transparency works properly
-      local function corner(x, y, dx, dy)
-        local t1 = dy >= 0 and (thickness) or (-thickness)
-        local t2 = dx >= 0 and (thickness) or (-thickness)
-
-        UiPush()
-        UiTranslate(x, y)
-        UiRect(dx, t1)
-
-        UiTranslate(0, t1)
-        UiRect(t2, dy - t1)
-        UiPop()
-      end
-
-      corner(x - boxSizeHalf, y - boxSizeHalf, boxSizePart, boxSizePart)
-      corner(x + boxSizeHalf + 1, y - boxSizeHalf, -boxSizePart, boxSizePart)
-      corner(x - boxSizeHalf, y + boxSizeHalf + 1, boxSizePart, -boxSizePart)
-      corner(x + boxSizeHalf + 1, y + boxSizeHalf + 1, -boxSizePart, -boxSizePart)
+      corner(x - boxSizeHalf, y - boxSizeHalf, boxSizePart, boxSizePart, thickness)
+      corner(x + boxSizeHalf + 1, y - boxSizeHalf, -boxSizePart, boxSizePart, thickness)
+      corner(x - boxSizeHalf, y + boxSizeHalf + 1, boxSizePart, -boxSizePart, thickness)
+      corner(x + boxSizeHalf + 1, y + boxSizeHalf + 1, -boxSizePart, -boxSizePart, thickness)
     end
 
     -- Lines
@@ -276,6 +277,9 @@ function client.draw()
   -- === Draw horizon line ===
   local function drawHorizon()
     -- TODO broken when not 16:9 for some reason
+    -- TODO but the thing is, you cannot set not 16:9 not in 2 players mode. Seems like a legitimate reason to not give a fuck
+    -- TODO Also, teardown does some blood wizardry to stretch rendering, because width/height is still displayed 1920x1080, nevertheless, scale changes
+
     -- The Great Horizon Rendering Explanation
 
     -- We draw a straight horizontal line for the horizon
@@ -326,11 +330,11 @@ function client.draw()
     UiTranslate(width * 0.5 + offsetX, height * 0.5 + offsetY)
     UiRotate(roll)
     UiAlign("center middle")
-    UiColor(0.3, 1, 0.3, 0.5)
+    UiColor(0.3, 1, 0.3, 0.3)
     UiRect(width * 1.5, 2)
 
     UiTranslate(0, 2)
-    UiColor(0.2, 0.7, 0.2, 0.5)
+    UiColor(0.2, 0.7, 0.2, 0.3)
     UiRect(width * 1.5, 1)
 
     UiPop()
@@ -349,6 +353,19 @@ function client.draw()
   --
   --UiImage("MOD/img/noise_"..noiseId..".png", 0, 0, 1920, 1080)
 
+
+  -- === Draw decorative camera lines ===
+  do
+    local size = height * 0.1
+    local margin = height * 0.1
+    local thickness = 3
+
+    UiColor(1, 1, 1, 1)
+    corner(margin, margin, size, size, thickness)
+    corner(width - margin, margin, -size, size, thickness)
+    corner(margin, height - margin, size, -size, thickness)
+    corner(width - margin, height - margin, -size, -size, thickness)
+  end
 
   -- === Draw controls widget ===
   client.controlsWidget.pitch = client.pitch

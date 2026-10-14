@@ -23,12 +23,12 @@ function ControlsWidget:draw()
   UiPush()
   do
     -- Background border
-    UiColor(0.21, 0.21, 0.21)
-    UiRoundedRect(ControlsWidget.WIDTH + 2 * borderSize, ControlsWidget.HEIGHT + 2 * borderSize, cornerSize + borderSize * 0.5)
+    --UiColor(0.21, 0.21, 0.21)
+    --UiRoundedRect(ControlsWidget.WIDTH + 2 * borderSize, ControlsWidget.HEIGHT + 2 * borderSize, cornerSize + borderSize * 0.5, borderSize)
 
     -- Background
     UiTranslate(borderSize, borderSize)
-    UiColor(0.08, 0.08, 0.08)
+    UiColor(0.08, 0.08, 0.08, 0.8)
     UiRoundedRect(ControlsWidget.WIDTH, ControlsWidget.HEIGHT, cornerSize)
 
     -- Pitch / Yaw indicator
@@ -40,7 +40,7 @@ function ControlsWidget:draw()
       UiTranslate(34, 47)
 
       -- Background
-      UiColor(0.13, 0.13, 0.13)
+      UiColor(0.13, 0.13, 0.13, 0.5)
       UiRect(canvasW, canvasH)
 
       -- Outline
@@ -106,7 +106,6 @@ function ControlsWidget:draw()
       UiColor(1, 1, 1)
       UiTranslate(-7, pitchRectSize - pitchRectSize * self.propulsion)
       UiRect(20, borderSize)
-
     end
     UiPop()
   end

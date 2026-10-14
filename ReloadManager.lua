@@ -9,8 +9,6 @@
 -- - markLoaded() from server.init() and client.init(). This sets initialized to true
 -- - if isReload(): initRegistry(), reload(), markLoaded() from server.tick() and client.tick(). This restores metatables
 
--- TODO check on 2 player setup. Do they run only 1 script?
-
 -- hasInitialized: false before first load, always true after first load (because engine restores it)
 -- vmReloaded: local, not serialized, always true after init
 
