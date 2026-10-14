@@ -1,6 +1,7 @@
 #include "SoundManager.lua"
 #include "ControlsWidget.lua"
 #include "RPC.lua"
+#include "ReloadManager.lua"
 
 -- Network
 client.activeRequests = {
@@ -35,6 +36,8 @@ client.propulsion = 0.0
 client.controlsWidget = ControlsWidget.new()
 
 function client.init()
+  ReloadManager.markLoaded()
+
   SoundManager:init()
 end
 
@@ -43,6 +46,12 @@ function client.destroy()
 end
 
 function client.tick(deltaTime)
+  if ReloadManager.isReload() then
+    ReloadManager.initRegistry()
+    ReloadManager.reload()
+    ReloadManager.markLoaded()
+  end
+
   SoundManager:updateLoops()
 
   -- Place tools

@@ -1,9 +1,13 @@
+#include "Missile.lua"
+#include "Player.lua"
+#include "ReloadManager.lua"
+
 server.missiles = {}
 server.players = {}
 server.nextMissileId = 1
 
 function server.createMissile()
-  local missile =  Missile.new()
+  local missile = Missile.new()
   local missileId = server.nextMissileId
   server.nextMissileId = server.nextMissileId + 1
   server.missiles[missileId] = missile
@@ -11,11 +15,19 @@ function server.createMissile()
 end
 
 function server.init()
+  ReloadManager.markLoaded()
+
   -- Register tools
   RegisterTool(ToolTabletId, "Tablet", "MOD/vox/Tablet.vox", 4)
 end
 
 function server.tick(deltaTime)
+  if ReloadManager.isReload() then
+    ReloadManager.initRegistry()
+    ReloadManager.reload()
+    ReloadManager.markLoaded()
+  end
+
   -- Init connected players
   for _, playerId in ipairs(GetAddedPlayers()) do
     server.players[playerId] = Player.new()

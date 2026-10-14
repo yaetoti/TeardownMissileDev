@@ -17,6 +17,8 @@ function server.createMissileServerRpc(clientId)
 
   -- Create missile
   local missile, missileId = server.createMissile()
+  missile.ownerId = clientId
+
   if debugMissile then
     missile:spawn(Transform(Vec(0, 2, 6)))
   else
@@ -27,19 +29,6 @@ function server.createMissileServerRpc(clientId)
   -- Update status
   player.isControllingMissile = true
   player.controlledMissileId = missileId
-
-  -- Set callback
-  local function callback()
-    local player = server.players[clientId]
-    if player ~= nil then
-      player.isControllingMissile = false
-      player.isDetached = false
-
-      server.missileExplodedClientRpc(clientId)
-    end
-  end
-
-  missile.onDestroyCallback = callback
 
   -- Send confirmation and body
   server.createMissileResponseClientRpc(clientId, true, missileId, missile.entities[1])

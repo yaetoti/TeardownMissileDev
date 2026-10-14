@@ -50,6 +50,8 @@ Missile.PENETRATION_TABLE = {
 
 function Missile.new()
   local obj = {
+    __type = "Missile",
+
     -- Entities
     entities = {},
 
@@ -87,7 +89,7 @@ function Missile.new()
 
     -- Destroyed
     isDestroyed = false,
-    onDestroyCallback = nil,
+    ownerId = 0,
 
     -- Explosion
     penetrationMode = false,
@@ -532,9 +534,17 @@ function Missile:destroy()
 
   self.isDestroyed = true
 
-  -- Callback
-  if self.onDestroyCallback ~= nil then
-    self.onDestroyCallback()
+  -- TODO coupling
+  -- TODO callbacks cannot be serialized so I moved the logic here. I could make a global handler function and a table with type, but that's a small mod, so..
+  -- Notify owner
+  if self.ownerId ~= 0 then
+    local player = server.players[self.ownerId]
+    if player ~= nil then
+      player.isControllingMissile = false
+      player.isDetached = false
+
+      server.missileExplodedClientRpc(self.ownerId)
+    end
   end
 end
 

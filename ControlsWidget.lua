@@ -5,6 +5,7 @@ ControlsWidget.HEIGHT = 220
 
 function ControlsWidget.new()
   local obj = {
+    __type = "ControlsWidget",
     pitch = 0.0,
     yaw = 0.0,
     roll = 0.0,
