@@ -274,6 +274,33 @@ function client.draw()
     UiPop()
   end
 
+  -- === Draw reticle ===
+  do
+    local function line(x, y, w, h)
+      UiPush()
+      UiTranslate(x, y)
+      UiRect(w, h)
+      UiPop()
+    end
+
+    UiPush()
+    local size = 20
+    local distance = 10
+    local halfThickness = 1
+
+    UiTranslate(width * 0.5, height * 0.5)
+    UiColor(1, 1, 1, 0.4)
+
+    -- horizontal left/right
+    line(-(distance + size), -halfThickness, size, halfThickness * 2)
+    line(distance, -halfThickness, size, halfThickness * 2)
+
+    -- vertical
+    line(-halfThickness, distance * 0.5, halfThickness * 2, size * 0.5)
+
+    UiPop()
+  end
+
   -- === Draw horizon line ===
   local function drawHorizon()
     -- TODO broken when not 16:9 for some reason
