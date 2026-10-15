@@ -18,7 +18,7 @@ function Physics.CalculateCL(angle)
   if angleAbs < 0.5 then -- peak at 20
     -- so peak
     --return sign * math.sin(6 * angleAbs) -- peak at 15
-    return sign * math.sin(6 * angleAbs) -- peak at 20
+    return sign * math.sin(4.5 * angleAbs) -- peak at 20
   else
     -- stall
     local c = math.cos(angleAbs)
