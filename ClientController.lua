@@ -67,16 +67,24 @@ function client.tick(deltaTime)
         local bobX = math.cos(time * 5.0) * 0.003 * speed
         local roll = math.sin(time * 5.0) * 0.1 * speed
 
-        local range = 1.5
-        local tabletLocation = Vec3.new(0.4, 0.1, -range)
+        local range = 1.3
+        local tabletLocation = Vec3.new(0.6, -0.5, -range)
+
+        --Debug.PosInTransform(cameraTransform, tabletLocation)
+        --Debug.LineInTransform(cameraTransform, {}, tabletLocation)
+
         hit, dist = QueryRaycast(cameraTransform.pos, tabletLocation:fromTransformVec(cameraTransform), range, 0.1)
         if hit then
           tabletLocation[3] = -math.min(dist, range)
         end
 
+        --Debug.PosInTransform(cameraTransform, tabletLocation)
+
         local baseTransform = Transform(tabletLocation, QuatEuler(-5, -10, 0))
         local offset = Transform(Vec(bobX, bobY, 0), QuatEuler(0, 0, roll))
         local transform = TransformToParentTransform(baseTransform, offset)
+        -- MagicaVoxel offset
+        transform.pos = VecAdd(transform.pos, {0, 0.35, 0})
 
         SetToolTransform(transform, 1.0, playerId)
       else
@@ -87,7 +95,7 @@ function client.tick(deltaTime)
         --local dot = VecDot(forward, up)
         --DebugPrint(dot)
 
-        SetToolTransform(Transform(Vec(0.0, 0.5, -0.6), QuatEuler(-10, 0, 0)), 1.0, playerId)
+        SetToolTransform(Transform(Vec(0.1, 0.0, -0.6), QuatEuler(-10, 0, 0)), 1.0, playerId)
         SetToolHandPoseLocalTransform(
           Transform(Vec(0.8, -0.7, -0.5)),
           Transform(Vec(-0.8, -0.7, -0.5)),
