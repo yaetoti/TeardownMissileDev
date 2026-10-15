@@ -110,6 +110,14 @@ function Vec3.__tostring(v)
   return string.format("Vec3(%.3f, %.3f, %.3f)", v[1], v[2], v[3])
 end
 
+function Vec3.lerp(v1, v2, t)
+  return Vec3.new(
+    Math.lerp(v1[1], v2[1], t),
+    Math.lerp(v1[2], v2[2], t),
+    Math.lerp(v1[3], v2[3], t)
+  )
+end
+
 ---@return Vec3
 function Vec3:clone()
   return Vec3.new(self[1], self[2], self[3])

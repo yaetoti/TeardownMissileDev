@@ -242,9 +242,9 @@ function client.draw()
     local boxSizeHalf = boxSize * 0.5
     local boxSizePart = boxSize * 0.4
     local thickness = 2
-    local color = dist > 0 and Vec(1, 1, 1) or Vec(0.8, 0.6, 0.6)
+    local color = dist > 0 and Vec(1, 1, 1) or Vec(1.0, 0.6, 0.6)
 
-    UiColor(color[1], color[2], color[3], 0.15)
+    UiColor(color[1], color[2], color[3], 0.4)
 
     -- Invert coords when behind
     if dist <= 0 then

@@ -40,7 +40,7 @@ function ControlsWidget:draw()
       UiTranslate(34, 47)
 
       -- Background
-      UiColor(0.13, 0.13, 0.13, 0.5)
+      UiColor(0.13, 0.13, 0.13, 1.0)
       UiRect(canvasW, canvasH)
 
       -- Outline
