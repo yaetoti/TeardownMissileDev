@@ -118,6 +118,14 @@ function Vec3.lerp(v1, v2, t)
   )
 end
 
+function Vec3:sign()
+  return Vec3.new(
+    Math.sign(self[1]),
+    Math.sign(self[2]),
+    Math.sign(self[3])
+  )
+end
+
 ---@return Vec3
 function Vec3:clone()
   return Vec3.new(self[1], self[2], self[3])

@@ -223,11 +223,15 @@ function Missile:update(deltaTime)
   local yaw = -self.yawInput
   local roll = self.rollInput
 
-  local s = 0.7
-  self.finAngleTargetTL = (roll + s * (pitch + yaw)) * Missile.FIN_MAX_ANGLE
-  self.finAngleTargetTR = (roll + s * (-pitch + yaw)) * Missile.FIN_MAX_ANGLE
-  self.finAngleTargetBL = (roll + s * (pitch - yaw)) * Missile.FIN_MAX_ANGLE
-  self.finAngleTargetBR = (roll + s * (-pitch - yaw)) * Missile.FIN_MAX_ANGLE
+  local xyLength = math.sqrt(pitch * pitch + yaw * yaw)
+  --pitch = pitch / xyLength
+  --yaw = yaw / xyLength
+
+  local s = 1.0
+  self.finAngleTargetTL = Math.clamp(roll + s * (pitch + yaw), -1, 1) * Missile.FIN_MAX_ANGLE
+  self.finAngleTargetTR = Math.clamp(roll + s * (-pitch + yaw), -1, 1) * Missile.FIN_MAX_ANGLE
+  self.finAngleTargetBL = Math.clamp(roll + s * (pitch - yaw), -1, 1) * Missile.FIN_MAX_ANGLE
+  self.finAngleTargetBR = Math.clamp(roll + s * (-pitch - yaw), -1, 1) * Missile.FIN_MAX_ANGLE
 
   self.finAngleTL = Math.moveTowards(self.finAngleTL, self.finAngleTargetTL, Missile.FIN_ROTATION_SPEED * deltaTime)
   self.finAngleTR = Math.moveTowards(self.finAngleTR, self.finAngleTargetTR, Missile.FIN_ROTATION_SPEED * deltaTime)
@@ -305,8 +309,6 @@ function Missile:update(deltaTime)
   end
 end
 
--- TODO mod is breaking saves
-
 function Missile:_checkDetonation(deltaTime)
   local checkPos = Missile.NOZZLE_OFFSET:fromTransformPos(self.transform)
   local checkDir = self.forward
@@ -348,31 +350,38 @@ function Missile:_checkDetonation(deltaTime)
 end
 
 function Missile:_updateMovement(deltaTime)
-  -- Parameters
-  local THRUST = 8000
-  local AIR_DENSITY = 1.22 -- TODO min max
+  local cInertia = 500 * 2
+  local cDamping = 50 * 8
+  local cThrust = 1
+  local cLift = 1
+  local cDragWings = 1
 
-  local AREA_WING_TOP = 4.0
-  local CL_ALPHA_WING = 2.5
-  local CD_WING = 1.0
+  -- Parameters
+  local THRUST = 8000 * cThrust
+  local AIR_DENSITY = 1.22 -- TODO min max
 
   --local WINGS_POS = Vec3.new(0, self.wingsOffsetY, 0)
   --local WINGS_POS = Vec3.new(0, self.scale * 8, self.scale * 10)
   --local WINGS_POS = Vec3.new(0, self.scale * 8, -self.scale * 3)
-  local WINGS_POS = Vec3.new(0, self.scale * 8, 0)
+  --local WINGS_POS = Vec3.new(0, self.scale * 8, 0)
+  local WINGS_POS = Vec3.new(0, 0, 0)
   local WINGS_SIZE = self.scale * 30
 
-  local AREA_FIN = 0.5
-  local CL_ALPHA_FIN = 1.0
-  local CD_FIN = 1.0
+  local AREA_WING_TOP = 4.0
+  local CL_ALPHA_WING = 3.5 * cLift
+  local CD_WING = 1.0 * cDragWings
 
-  local AREA_BODY_SIDE = 10.0
+  local AREA_FIN = 0.5
+  local CL_ALPHA_FIN = 1.5 * cLift
+  local CD_FIN = 1.0 * cDragWings
+
+  local AREA_BODY_SIDE = 8.0
   local AREA_BODY_FRONT = 1.5
-  local CL_ALPHA_BODY = 0.5
+  local CL_ALPHA_BODY = 1.0
   local CD_BODY = 1.0
 
-  local INERTIA = Vec3.new(2000, 2000, 500)
-  local TORQUE_DAMPING = Vec3.new(400, 400, 100)
+  local INERTIA = Vec3.new(4, 4, 1) * cInertia
+  local TORQUE_DAMPING = Vec3.new(4, 4, 1) * cDamping
 
   -- Pre-calculated
   local velocityDir, velocity = self.velocity:normalize()
@@ -431,6 +440,11 @@ function Missile:_updateMovement(deltaTime)
     localForce = localForce + fLiftRightWing + fLiftLeftWing + fDragRightWing + fDragLeftWing
     torque = torque + tLiftRightWing + tLiftLeftWing + tDragRightWing + tDragLeftWing
 
+    --Debug.VecInTransform(self.transform, WINGS_POS + rightVec, fLiftRightWing)
+    --Debug.VecInTransform(self.transform, WINGS_POS + leftVec, fLiftLeftWing)
+    --DebugPrint(tLiftRightWing:length())
+    --DebugPrint(tLiftLeftWing:length())
+
     -- TODO debug
     --Debug.PosInTransform(self.transform, WINGS_POS)
     --Debug.LineInTransform(self.transform, WINGS_POS, rightVec)
@@ -464,11 +478,12 @@ function Missile:_updateMovement(deltaTime)
 
     --Debug.PosInTransform(self.transform, finPos)
     --Debug.VecInTransform(self.transform, finData[3], normal)
+    --Debug.VecInTransform(self.transform, finData[3], fLiftFin)
+    --DebugPrint(tLiftFin:length())
   end
 
   -- Damping
   local tDampingBody = -self.angularVelocity * TORQUE_DAMPING
-  torque = torque + tDampingBody
 
 
   -- === Combine forces ===
