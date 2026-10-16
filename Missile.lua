@@ -97,6 +97,10 @@ function Missile.new()
     detonationTimer = 0.0,
     penetration = 1.0,
 
+    -- TODO missile should not explose from leaves (penetration logic)
+    -- TODO switch modes: immediate explosion, penetration based, timer
+    -- TODO camera modes: fixed 3st, fixed 1st (nose camera, maybe noise), super epic anime camera (affected by linear/angular velocity delta)
+
     -- Physics
     transform = Transform(),
     right = Math.RIGHT,
@@ -111,7 +115,14 @@ function Missile.new()
     pitchInput = 0.0,
     yawInput = 0.0,
     rollInput = 0.0,
-    propulsionInput = 0.0
+    propulsionInput = 0.0,
+
+    -- Network sync stuff
+    syncLastPos = Vec3.new(),
+    syncNextPos = Vec3.new(),
+    syncLastRot = Quat(),
+    syncNextRot = Quat(),
+    syncTimeSinceUpdate = 0.0,
   }
 
   return setmetatable(obj, Missile)
@@ -130,6 +141,12 @@ function Missile:spawn(transform)
 
   self.transform = transform
   self:_updateBasis()
+
+  -- Update sync transform
+  self.syncLastPos = VecCopy(transform.pos)
+  self.syncNextPos = VecCopy(transform.pos)
+  self.syncLastRot = QuatCopy(transform.rot)
+  self.syncNextRot = QuatCopy(transform.rot)
 
   -- Spawn entities
   self.entities = Spawn("MOD/vox/Missile.xml", self.transform)
@@ -204,10 +221,21 @@ function Missile:_updateBasis()
   self.forward = Math.FORWARD:rotate(self.transform.rot)
 end
 
-function Missile:update(deltaTime)
+function Missile:tick(deltaTime)
   if self.isDestroyed then
     return
   end
+
+  -- === Interpolate position ===
+  -- TODO maybe the client should set tick transform, because there is network delay? IDK if setbodytransform allows this
+  self.syncTimeSinceUpdate = self.syncTimeSinceUpdate + deltaTime
+  local syncT = math.min(self.syncTimeSinceUpdate / Math.FIXED_DT, 1.0)
+  self.transform.pos = VecLerp(self.syncLastPos, self.syncNextPos, syncT)
+  self.transform.rot = QuatSlerp(self.syncLastRot, self.syncNextRot, syncT)
+  self:_updateBasis()
+
+  SetBodyTransform(self.entities[1], self.transform)
+
 
   -- === Update wings ===
   self:_updateWingsSpreading(deltaTime)
@@ -259,13 +287,6 @@ function Missile:update(deltaTime)
   end
 
 
-
-  -- === Update movement ===
-  if not debugMissile then
-    self:_updateMovement(deltaTime)
-  end
-
-
   -- === Update particles ===
   if self.propulsion > Math.EPSILON then
     self.smokeTimer = self.smokeTimer + deltaTime
@@ -280,7 +301,6 @@ function Missile:update(deltaTime)
       SpawnParticle(Missile.NOZZLE_OFFSET:fromTransformPos(self.transform), velocity, 2)
     end
   end
-
 
 
   -- === Update music effects ===
@@ -306,6 +326,19 @@ function Missile:update(deltaTime)
 
   if self.shouldDetonate then
     self:explode()
+  end
+end
+
+function Missile:update(deltaTime)
+  if self.isDestroyed then
+    return
+  end
+
+  self.syncTimeSinceUpdate = 0
+
+  -- === Update movement ===
+  if not debugMissile then
+    self:_updateMovement(deltaTime)
   end
 end
 
@@ -356,6 +389,9 @@ function Missile:_updateMovement(deltaTime)
   local cLift = 1
   local cDragWings = 1
 
+  self.transform = Transform(self.syncNextPos, self.syncNextRot)
+  self:_updateBasis()
+
   -- Parameters
   local THRUST = 8000 * cThrust
   local AIR_DENSITY = 1.22 -- TODO min max
@@ -385,7 +421,7 @@ function Missile:_updateMovement(deltaTime)
 
   -- Pre-calculated
   local velocityDir, velocity = self.velocity:normalize()
-  local localVelocityVec = self.velocity:toBasis(self.right, self.up, self.forward)
+  local localVelocityVec = self.velocity:toTransformVec(self.transform)
   local localVelocityDir = localVelocityVec:normalize()
 
   -- TODO relative velocity: wind
@@ -490,12 +526,16 @@ function Missile:_updateMovement(deltaTime)
 
 
   -- === Combine forces ===
-  force = force + localForce:fromBasis(self.right, self.up, self.forward)
+  force = force + localForce:fromTransformVec(self.transform)
+
+  -- === Update last sync state ===
+  self.syncLastPos = self.syncNextPos
+  self.syncLastRot = self.syncNextRot
 
   -- === Integrate (Linear) ===
   local acceleration = force / Missile.MASS
   self.velocity = self.velocity + acceleration * deltaTime
-  self.transform.pos = VecAdd(self.transform.pos, self.velocity * deltaTime)
+  self.syncNextPos = VecAdd(self.syncLastPos, self.velocity * deltaTime)
 
   -- === Integrate (Rotational) ===
   local angularAcceleration = torque / INERTIA
@@ -507,17 +547,8 @@ function Missile:_updateMovement(deltaTime)
     local deltaRotation = QuatAxisAngle(angularAxis, angularDeltaDegrees)
 
     -- Local space rotation
-    self.transform.rot = QuatRotateQuat(self.transform.rot, deltaRotation)
+    self.syncNextRot = QuatRotateQuat(self.syncLastRot, deltaRotation)
   end
-
-  -- TODO debug
-  -- Debug.Vec(self.transform.pos, self.velocity)
-
-  -- === Update body basis ===
-  self:_updateBasis()
-
-  -- === Apply transform ===
-  SetBodyTransform(self.entities[1], self.transform)
 end
 
 function Missile:spreadWings()

@@ -2,6 +2,7 @@
 
 Math = {}
 Math.EPSILON = 0.000001
+Math.FIXED_DT = 1 / 60
 Math.HALF_PI = math.pi * 0.5
 
 Math.RIGHT = Vec3.new(1, 0, 0)
