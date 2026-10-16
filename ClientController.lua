@@ -86,7 +86,7 @@ function client.tick(deltaTime)
         -- MagicaVoxel offset
         transform.pos = VecAdd(transform.pos, {0, 0.35, 0})
 
-        SetToolTransform(transform, 1.0, playerId)
+        SetToolTransform(transform, 0.0, playerId)
       else
         --TODO Dis baka holds his hands straight. No point in this unless I find how to bend his elbow. Offset Z: -dot * 0.3
         --local transform = GetPlayerTransformWithPitch(playerId)
@@ -95,7 +95,7 @@ function client.tick(deltaTime)
         --local dot = VecDot(forward, up)
         --DebugPrint(dot)
 
-        SetToolTransform(Transform(Vec(0.1, 0.0, -0.6), QuatEuler(-10, 0, 0)), 1.0, playerId)
+        SetToolTransform(Transform(Vec(0.1, 0.0, -0.6), QuatEuler(-10, 0, 0)), 0.0, playerId)
         SetToolHandPoseLocalTransform(
           Transform(Vec(0.8, -0.7, -0.5)),
           Transform(Vec(-0.8, -0.7, -0.5)),

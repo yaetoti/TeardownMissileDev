@@ -6,6 +6,8 @@ This is a mod for the Teardown game that adds a controllable missile with a phys
 
 Supports multiplayer.
 
+[Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3820804315)
+
 **Controls while flying**
 - Pitch / Yaw - mouse
 - Roll - A/D (or Shift + A/D for smooth controlling)
