@@ -6,6 +6,7 @@
 #include "ServerController.lua"
 
 -- TODO remove
+-- *smirk* No.
 debugMissile = false
 debugFixedSpawn = false
 
