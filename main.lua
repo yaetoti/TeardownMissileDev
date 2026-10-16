@@ -7,5 +7,6 @@
 
 -- TODO remove
 debugMissile = false
+debugFixedSpawn = false
 
 ToolTabletId = "tablet"

@@ -6,6 +6,7 @@ server.missiles = {}
 server.players = {}
 server.nextMissileId = 1
 
+
 function server.createMissile()
   local missile = Missile.new()
   local missileId = server.nextMissileId
@@ -13,6 +14,33 @@ function server.createMissile()
   server.missiles[missileId] = missile
   return missile, missileId
 end
+
+function server.randomSpawnTransform()
+  -- TODO set from tablet?
+  local margin = 500
+  local y = 70
+  local aabbMin, aabbMax = GetBoundaryBounds()
+  aabbMin = VecSub(aabbMin, Vec(margin, 0, margin))
+  aabbMax = VecAdd(aabbMax, Vec(margin, 0, margin))
+
+  local isClampedX = GetRandomBool()
+
+  local xBool = GetRandomInt(0, 1)
+  local x = Math.lerp(aabbMin[1], aabbMax[1], xBool)
+  local zBool = GetRandomInt(0, 1)
+  local z = Math.lerp(aabbMin[3], aabbMax[3], zBool)
+
+  if isClampedX then
+    z = GetRandomFloat(aabbMin[3], aabbMax[3])
+  else
+    x = GetRandomFloat(aabbMin[1], aabbMax[1])
+  end
+
+  local pos = Vec(x, y, z)
+  local rot = QuatLookAt(pos, Vec(0, y, 0))
+  return Transform(pos, rot)
+end
+
 
 function server.init()
   ReloadManager.markLoaded()

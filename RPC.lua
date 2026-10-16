@@ -21,8 +21,11 @@ function server.createMissileServerRpc(clientId)
 
   if debugMissile then
     missile:spawn(Transform(Vec(0, 2, 6)))
-  else
+  elseif debugFixedSpawn then
     missile:spawn(Transform(Vec(0, 80, 500 + missileId * 6)))
+    missile.velocity = missile.forward * 25
+  else
+    missile:spawn(server.randomSpawnTransform())
     missile.velocity = missile.forward * 25
   end
 
