@@ -275,7 +275,7 @@ function Missile:update(deltaTime)
       local velocity = -self.forward * math.max(self.forward:dot(self.velocity), 10)
 
       ParticleType("plain")
-      ParticleRadius(self.propulsion * 0.3 + 0.1, 1.0)
+      ParticleRadius(self.propulsion * 0.15 + 0.1, 1.0)
       ParticleDrag(0.1)
       SpawnParticle(Missile.NOZZLE_OFFSET:fromTransformPos(self.transform), velocity, 2)
     end
@@ -351,8 +351,8 @@ end
 
 function Missile:_updateMovement(deltaTime)
   local cInertia = 500 * 2
-  local cDamping = 50 * 8
-  local cThrust = 1
+  local cDamping = 50 * 4
+  local cThrust = 2
   local cLift = 1
   local cDragWings = 1
 
@@ -440,6 +440,8 @@ function Missile:_updateMovement(deltaTime)
     localForce = localForce + fLiftRightWing + fLiftLeftWing + fDragRightWing + fDragLeftWing
     torque = torque + tLiftRightWing + tLiftLeftWing + tDragRightWing + tDragLeftWing
 
+    -- TODO induced drag?
+
     --Debug.VecInTransform(self.transform, WINGS_POS + rightVec, fLiftRightWing)
     --Debug.VecInTransform(self.transform, WINGS_POS + leftVec, fLiftLeftWing)
     --DebugPrint(tLiftRightWing:length())
@@ -484,6 +486,7 @@ function Missile:_updateMovement(deltaTime)
 
   -- Damping
   local tDampingBody = -self.angularVelocity * TORQUE_DAMPING
+  torque = torque + tDampingBody
 
 
   -- === Combine forces ===

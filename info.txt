@@ -1,6 +1,6 @@
 name = Air Launched Cruise Missile
 author = yaetoti
-description = [noupload] Air Launched Cruise Missile by yaetoti
+description = [noupload] The mod adds the ability to launch controllable cruise missiles with foldable wings, working stabilizers and physically correct (to a reasonable extent) physics. Supports multiplayer.
 tags = Tool
 version = 2
-preview = missile.png
+preview = preview.png
