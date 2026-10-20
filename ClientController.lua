@@ -1,5 +1,6 @@
 #include "SoundManager.lua"
 #include "ControlsWidget.lua"
+#include "TabletUI.lua"
 #include "RPC.lua"
 #include "ReloadManager.lua"
 
@@ -34,6 +35,7 @@ client.propulsion = 0.0
 
 -- UI
 client.controlsWidget = ControlsWidget.new()
+client.tabletUI = TabletUI.new()
 
 function client.init()
   ReloadManager.markLoaded()
@@ -107,6 +109,10 @@ function client.tick(deltaTime)
 
   -- Tool input
   if GetPlayerCanUseTool() and GetPlayerGrabBody() == 0 and GetPlayerTool() == ToolTabletId then
+    if InputPressed("q") then
+      client.tabletUI:toggle()
+    end
+
     if InputPressed("lmb") then
       -- Create missile
       if client.isControllingMissile then
@@ -220,6 +226,9 @@ function client.tick(deltaTime)
 end
 
 function client.draw()
+  local deltaTime = GetTimeStep()
+  client.tabletUI:render(deltaTime)
+
   if not client.isControllingMissile or client.isDetached then
     return
   end

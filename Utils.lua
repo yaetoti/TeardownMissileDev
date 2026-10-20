@@ -16,7 +16,7 @@ function Utils.deepCopy(obj)
 
   local copy = {}
   for k, v in pairs(obj) do
-    copy[deepCopy(k)] = deepCopy(v)
+    copy[Utils.deepCopy(k)] = Utils.deepCopy(v)
   end
 
   return copy
