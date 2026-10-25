@@ -1,6 +1,7 @@
 #include "Missile.lua"
 #include "Player.lua"
 #include "ReloadManager.lua"
+#include "Settings.lua"
 
 server.missiles = {}
 server.players = {}
@@ -43,6 +44,7 @@ end
 
 
 function server.init()
+  Settings.init()
   ReloadManager.markLoaded()
 
   -- Register tools
@@ -52,6 +54,7 @@ end
 function server.tick(deltaTime)
   if ReloadManager.isReload() then
     ReloadManager.initRegistry()
+    Settings.init()
     ReloadManager.reload()
     ReloadManager.markLoaded()
   end

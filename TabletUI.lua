@@ -1,4 +1,5 @@
 #include "Math.lua"
+#include "Settings.lua"
 
 TabletUI = {}
 TabletUI.__index = TabletUI
@@ -32,7 +33,7 @@ TabletUI.Config = {
   BOOT_PAUSE_TIME = 0.5,
 
   COLOR_TABLET_FRAME = { 0.1, 0.1, 0.1 },
-  COLOR_TABLET_SHADOW = { 0.08, 0.08, 0.08 },
+  COLOR_TABLET_SHADOW = { 0.03, 0.03, 0.08 },
   COLOR_SCREEN_OUTLINE = { 0.07, 0.07, 0.07 },
   COLOR_LOCK_BUTTON = { 0.2, 0.2, 0.2 },
 
@@ -81,9 +82,15 @@ function TabletUI.new()
     moveProgress = 0.0,
     crtProgress = 0.0,
     bootTimer = 0.0,
+
+    settings = Settings.load()
   }
 
   return setmetatable(obj, TabletUI)
+end
+
+function TabletUI:reloadSettings()
+  self.settings = Settings.load()
 end
 
 function TabletUI:show()
@@ -212,9 +219,15 @@ function TabletUI:_renderFrame()
   UiRoundedRect(100, 20, 5)
   UiPop()
 
+  -- Frame Side
+  UiPush()
+  UiColor(unpack(TabletUI.Config.COLOR_TABLET_SHADOW))
+  UiRoundedRect(TabletUI.Config.FRAME_W + 7, TabletUI.Config.FRAME_H + 9, TabletUI.Config.FRAME_RADIUS)
+  UiPop()
+
   -- Flash drive: USB
   UiPush()
-  UiTranslate(TabletUI.Config.FRAME_W, TabletUI.Config.FRAME_H - 200)
+  UiTranslate(TabletUI.Config.FRAME_W + 3, TabletUI.Config.FRAME_H - 200)
 
   UiColor(unpack(TabletUI.Config.COLOR_FLASH_USB_SIDE))
   UiRect(15, 65)
@@ -238,12 +251,6 @@ function TabletUI:_renderFrame()
   end
 
   UiRoundedRect(8, 8, 1)
-  UiPop()
-
-  -- Frame Side
-  UiPush()
-  UiColor(unpack(TabletUI.Config.COLOR_TABLET_SHADOW))
-  UiRoundedRect(TabletUI.Config.FRAME_W + 5, TabletUI.Config.FRAME_H + 7, TabletUI.Config.FRAME_RADIUS)
   UiPop()
 
   -- Frame
@@ -382,7 +389,7 @@ function TabletUI:_renderSettingsScreen(screenW, screenH)
     UiRect(canvasW, 3)
     UiTranslate(0, 40)
 
-    -- Settings
+    -- === Settings ===
     local rowHeight = 64
     local rowPadding = 20
     local rowMargins = 20
@@ -391,12 +398,7 @@ function TabletUI:_renderSettingsScreen(screenW, screenH)
     UiFont("regular.ttf", 28)
     UiColor(unpack(TabletUI.Config.COLOR_TEXT))
 
-    -- sensitivityX
-    -- sensitivityY
-    -- detonation timer: slider? (0-10)
-    -- minimal penetration: slider? (0-10)
-    -- Skip boot sequence (Enhanced boot sequence, Enhanced boot speed, Enhanced boot algorithm): enabled/disabled
-
+    -- Helpers
     local function SliderOption(label, value, min, max, precision)
       precision = precision or 3
       UiPush()
@@ -474,35 +476,24 @@ function TabletUI:_renderSettingsScreen(screenW, screenH)
       return value
     end
 
-    sensX = sensX or 1
-    sensX = SliderOption("Sensitivity X", sensX, 0, 2)
-
+    -- Options
+    self.settings.sensitivityX = SliderOption("Sensitivity X", self.settings.sensitivityX, 0, 2)
+    UiTranslate(0, rowHeight + rowMargins)
+    self.settings.sensitivityY = SliderOption("Sensitivity Y", self.settings.sensitivityY, 0, 2)
+    UiTranslate(0, rowHeight + rowMargins)
+    self.settings.fastBoot = TriggerButtonOption("Fast boot algorithm", self.settings.fastBoot)
     UiTranslate(0, rowHeight + rowMargins)
 
-    sensY = sensY or 1
-    sensY = SliderOption("Sensitivity Y", sensY, 0, 2)
-
+    self.settings.spawnDistance = SliderOption("Launch distance", self.settings.spawnDistance, 0, 2000, 0)
+    UiTranslate(0, rowHeight + rowMargins)
+    self.settings.spawnHeight = SliderOption("Launch altitude", self.settings.spawnHeight, 25, 500, 0)
+    UiTranslate(0, rowHeight + rowMargins)
+    self.settings.detonationTimer = SliderOption("Detonation timer", self.settings.detonationTimer, 0, 3, 2)
+    UiTranslate(0, rowHeight + rowMargins)
+    self.settings.penetrationThreshold = SliderOption("Penetration threshold", self.settings.penetrationThreshold, 0, 1)
     UiTranslate(0, rowHeight + rowMargins)
 
-    timer = timer or 0.25
-    timer = SliderOption("Detonation timer", timer, 0, 3, 2)
-
-    UiTranslate(0, rowHeight + rowMargins)
-
-    penetrationThreshold = penetrationThreshold or 0
-    penetrationThreshold = SliderOption("Penetration threshold", penetrationThreshold, 0, 1)
-
-    UiTranslate(0, rowHeight + rowMargins)
-
-    distanceFromBorder = distanceFromBorder or 500
-    distanceFromBorder = SliderOption("Distance from the map border", distanceFromBorder, 0, 2000, 0)
-
-    UiTranslate(0, rowHeight + rowMargins)
-
-    if enhancedBoot == nil then
-      enhancedBoot = false
-    end
-    enhancedBoot = TriggerButtonOption("Fast boot algorithm", enhancedBoot)
+    Settings.save(self.settings)
   end
   UiPop()
 end

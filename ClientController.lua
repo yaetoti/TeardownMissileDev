@@ -3,6 +3,7 @@
 #include "TabletUI.lua"
 #include "RPC.lua"
 #include "ReloadManager.lua"
+#include "Settings.lua"
 
 -- Network
 client.activeRequests = {
@@ -38,6 +39,8 @@ client.controlsWidget = ControlsWidget.new()
 client.tabletUI = TabletUI.new()
 
 function client.init()
+  Settings.init()
+  client.tabletUI:reloadSettings()
   ReloadManager.markLoaded()
 
   SoundManager:init()
@@ -50,7 +53,11 @@ end
 function client.tick(deltaTime)
   if ReloadManager.isReload() then
     ReloadManager.initRegistry()
+
+    Settings.init()
     ReloadManager.reload()
+    client.tabletUI:reloadSettings()
+
     ReloadManager.markLoaded()
   end
 
