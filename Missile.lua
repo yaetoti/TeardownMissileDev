@@ -376,7 +376,7 @@ function Missile:_checkDetonation(deltaTime)
       -- Start timer
       if not self.isArmed then
         self.isArmed = true
-        self.detonationTimer = Missile.DETONATION_TIME
+        self.detonationTimer = Settings.Get("detonationTimer")
       end
     end
   end

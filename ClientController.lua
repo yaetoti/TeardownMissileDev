@@ -25,8 +25,6 @@ client.missileBody = 0
 client.targetPos = nil
 
 -- Controls
-client.pitchSensitivity = 0.5
-client.yawSensitivity = 0.5
 client.rollSensitivity = 2.0
 client.propulsionSensitivity = 0.1
 client.roll = 0.0
@@ -170,10 +168,9 @@ function client.tick(deltaTime)
     if client.isControllingMissile and not client.isDetached then
       -- Update input
       if not client.freeCameraEnabled then
-        -- TODO remove client.freeCameraEnabled or make it a feature
         -- Get input
-        local pitchInput = InputValue("cameray") * client.pitchSensitivity
-        local yawInput = InputValue("camerax") * client.yawSensitivity
+        local pitchInput = InputValue("cameray") * client.tabletUI.settings.sensitivityY
+        local yawInput = InputValue("camerax") * client.tabletUI.settings.sensitivityX
         local propulsionInput = InputValue("mousewheel") * client.propulsionSensitivity
         local rollInput = 0.0
 
@@ -188,11 +185,9 @@ function client.tick(deltaTime)
           -- Update roll (abrupt)
           if InputDown("left") then rollInput = rollInput - 1 end
           if InputDown("right") then rollInput = rollInput + 1 end
-          --if Math.distance(rollInput, 0) < Math.EPSILON and (InputReleased("left") or InputReleased("right")) then
           if Math.distance(rollInput, 0) < Math.EPSILON then
             client.roll = 0
           else
-            --client.roll = Math.clamp(client.roll + rollInput, -1, 1)
             client.roll = Math.clamp(rollInput, -1, 1)
           end
         end

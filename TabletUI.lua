@@ -27,7 +27,7 @@ TabletUI.Config = {
   OFFSET_HIDDEN = -1000,
   OFFSET_SHOWN = 50,
 
-  MOVE_TIME = 0.35,
+  MOVE_TIME = 0.25,
   CRT_TIME = 0.2,
   BOOT_LINE_DELAY = 0.05,
   BOOT_PAUSE_TIME = 0.5,
@@ -125,6 +125,11 @@ function TabletUI:_update(deltaTime)
         self.status = TabletUI.Status.SHOWN
         self.screenState = TabletUI.ScreenState.BOOTING
         self.bootTimer = 0.0
+
+        -- Fast boot
+        if self.settings.fastBoot then
+          self.bootTimer = (#TabletUI.BootLog * TabletUI.Config.BOOT_LINE_DELAY) + TabletUI.Config.BOOT_PAUSE_TIME
+        end
       end
     end
   elseif self.status == TabletUI.Status.HIDING then
@@ -153,7 +158,7 @@ function TabletUI:render(deltaTime)
     return
   end
 
-  if self.status == TabletUI.Status.SHOWN then
+  if self.status == TabletUI.Status.SHOWN or self.status == TabletUI.Status.SHOWING then
     UiMakeInteractive()
   end
 
@@ -484,13 +489,13 @@ function TabletUI:_renderSettingsScreen(screenW, screenH)
     self.settings.fastBoot = TriggerButtonOption("Fast boot algorithm", self.settings.fastBoot)
     UiTranslate(0, rowHeight + rowMargins)
 
-    self.settings.spawnDistance = SliderOption("Launch distance", self.settings.spawnDistance, 0, 2000, 0)
+    self.settings.spawnDistance = SliderOption("(Server authority) Launch distance", self.settings.spawnDistance, 0, 2000, 0)
     UiTranslate(0, rowHeight + rowMargins)
-    self.settings.spawnHeight = SliderOption("Launch altitude", self.settings.spawnHeight, 25, 500, 0)
+    self.settings.spawnHeight = SliderOption("(Server authority) Launch altitude", self.settings.spawnHeight, 25, 500, 0)
     UiTranslate(0, rowHeight + rowMargins)
-    self.settings.detonationTimer = SliderOption("Detonation timer", self.settings.detonationTimer, 0, 3, 2)
+    self.settings.detonationTimer = SliderOption("(Server authority) Detonation timer", self.settings.detonationTimer, 0, 3, 2)
     UiTranslate(0, rowHeight + rowMargins)
-    self.settings.penetrationThreshold = SliderOption("Penetration threshold", self.settings.penetrationThreshold, 0, 1)
+    self.settings.penetrationThreshold = SliderOption("(Server authority) Penetration threshold", self.settings.penetrationThreshold, 0, 1)
     UiTranslate(0, rowHeight + rowMargins)
 
     Settings.save(self.settings)

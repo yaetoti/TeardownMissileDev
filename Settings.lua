@@ -4,8 +4,8 @@ Settings.Types = {
   BOOL = 2,
 }
 Settings.OPTIONS = {
-  sensitivityX = { default = 1.0, type = Settings.Types.FLOAT },
-  sensitivityY = { default = 1.0, type = Settings.Types.FLOAT },
+  sensitivityX = { default = 0.5, type = Settings.Types.FLOAT },
+  sensitivityY = { default = 0.5, type = Settings.Types.FLOAT },
   fastBoot = { default = false, type = Settings.Types.BOOL },
 
   spawnHeight = { default = 70.0, type = Settings.Types.FLOAT },

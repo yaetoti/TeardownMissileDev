@@ -17,9 +17,9 @@ function server.createMissile()
 end
 
 function server.randomSpawnTransform()
-  -- TODO set from tablet?
-  local margin = 500
-  local y = 70
+  local margin = Settings.Get("spawnDistance")
+  local y = Settings.Get("spawnHeight")
+  DebugPrint(y)
   local aabbMin, aabbMax = GetBoundaryBounds()
   aabbMin = VecSub(aabbMin, Vec(margin, 0, margin))
   aabbMax = VecAdd(aabbMax, Vec(margin, 0, margin))
