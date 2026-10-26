@@ -78,6 +78,20 @@ function server.tick(deltaTime)
     server.players[playerId] = nil
   end
 
+  -- Update events
+  do
+    local eventCount = GetEventCount("playerdied")
+    for i = 1, eventCount do
+      local playerId = GetEvent("playerdied", i)
+      local player = server.players[playerId]
+      if player.isControllingMissile then
+        -- Destroy missiles of dead players
+        local missile = server.missiles[player.controlledMissileId]
+        missile:explode()
+      end
+    end
+  end
+
   -- Update players
   for playerId, player in pairs(server.players) do
     if player.isControllingMissile and not player.isDetached then

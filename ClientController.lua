@@ -61,6 +61,18 @@ function client.tick(deltaTime)
 
   SoundManager:updateLoops()
 
+  -- Update events
+  do
+    local eventCount = GetEventCount("playerdied")
+    for i = 1, eventCount do
+      local playerId = GetEvent("playerdied", i)
+      if playerId == GetLocalPlayer() then
+        -- Reset tablet
+        client.tabletUI = TabletUI.new()
+      end
+    end
+  end
+
   -- Place tools
   for _, playerId in ipairs(GetAllPlayers()) do
     if GetPlayerTool(playerId) == ToolTabletId then

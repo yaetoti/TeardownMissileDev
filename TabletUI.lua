@@ -33,7 +33,7 @@ TabletUI.Config = {
   BOOT_PAUSE_TIME = 0.5,
 
   COLOR_TABLET_FRAME = { 0.1, 0.1, 0.1 },
-  COLOR_TABLET_SHADOW = { 0.03, 0.03, 0.08 },
+  COLOR_TABLET_SHADOW = { 0.07, 0.07, 0.07 },
   COLOR_SCREEN_OUTLINE = { 0.07, 0.07, 0.07 },
   COLOR_LOCK_BUTTON = { 0.2, 0.2, 0.2 },
 
