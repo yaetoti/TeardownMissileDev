@@ -6,12 +6,11 @@ Settings.Types = {
 Settings.OPTIONS = {
   sensitivityX = { default = 0.5, type = Settings.Types.FLOAT },
   sensitivityY = { default = 0.5, type = Settings.Types.FLOAT },
+  detonationTimer = { default = 0.0, type = Settings.Types.FLOAT },
   fastBoot = { default = false, type = Settings.Types.BOOL },
 
   spawnHeight = { default = 70.0, type = Settings.Types.FLOAT },
   spawnDistance = { default = 500.0, type = Settings.Types.FLOAT },
-  detonationTimer = { default = 0.0, type = Settings.Types.FLOAT },
-  penetrationThreshold = { default = 0.0, type = Settings.Types.FLOAT },
 }
 
 local GetActions = {
@@ -41,6 +40,15 @@ function Settings.Set(id, value)
   return SetActions[option.type](Settings.GetId(id), value)
 end
 
+
+function Settings.new()
+  local obj = {}
+  for id, option in pairs(Settings.OPTIONS) do
+    obj[id] = option.default
+  end
+
+  return obj
+end
 
 function Settings.init()
   for id, option in pairs(Settings.OPTIONS) do

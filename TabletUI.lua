@@ -375,16 +375,29 @@ function TabletUI:_renderSettingsScreen(screenW, screenH)
     local canvasW, canvasH = screenW - 2 * margins, screenH - 2 * margins
 
     -- Header
+    UiPush()
     UiFont("bold.ttf", 44)
     UiColor(unpack(TabletUI.Config.COLOR_TEXT))
     UiText("SYSTEM CONFIGURATION")
+    UiPop()
 
     -- Power button
     UiPush()
     UiTranslate(canvasW - 160, 0)
     UiFont("bold.ttf", 24)
-    if TextButton(160, 48, "POWER OFF", {0.1, 0.3, 0.15}, {0.15, 0.45, 0.2}, {0.05, 0.2, 0.1}, TabletUI.Config.COLOR_TEXT) then
+    if TextButton(160, 48, "POWER OFF", { 0.1, 0.3, 0.15 }, { 0.15, 0.45, 0.2 }, { 0.05, 0.2, 0.1 }, TabletUI.Config.COLOR_TEXT) then
       self:hide()
+    end
+    UiPop()
+
+    -- Reset button
+    UiPush()
+    UiTranslate(canvasW - 280, 0)
+    UiFont("bold.ttf", 24)
+    --if TextButton(100, 48, "RESET", { 0.3, 0.1, 0.1 }, { 0.45, 0.15, 0.15 }, { 0.2, 0.05, 0.05 }, { 0.9, 0.1, 0.1 }) then
+    if TextButton(100, 48, "RESET", { 0.1, 0.3, 0.15 }, { 0.15, 0.45, 0.2 }, { 0.05, 0.2, 0.1 }, TabletUI.Config.COLOR_TEXT) then
+      self.settings = Settings.new()
+      Settings.save(self.settings)
     end
     UiPop()
 
@@ -486,16 +499,14 @@ function TabletUI:_renderSettingsScreen(screenW, screenH)
     UiTranslate(0, rowHeight + rowMargins)
     self.settings.sensitivityY = SliderOption("Sensitivity Y", self.settings.sensitivityY, 0, 2)
     UiTranslate(0, rowHeight + rowMargins)
+    self.settings.detonationTimer = SliderOption("Detonation timer", self.settings.detonationTimer, 0, 1, 2)
+    UiTranslate(0, rowHeight + rowMargins)
     self.settings.fastBoot = TriggerButtonOption("Fast boot algorithm", self.settings.fastBoot)
     UiTranslate(0, rowHeight + rowMargins)
 
     self.settings.spawnDistance = SliderOption("(Server authority) Launch distance", self.settings.spawnDistance, 0, 2000, 0)
     UiTranslate(0, rowHeight + rowMargins)
     self.settings.spawnHeight = SliderOption("(Server authority) Launch altitude", self.settings.spawnHeight, 25, 500, 0)
-    UiTranslate(0, rowHeight + rowMargins)
-    self.settings.detonationTimer = SliderOption("(Server authority) Detonation timer", self.settings.detonationTimer, 0, 3, 2)
-    UiTranslate(0, rowHeight + rowMargins)
-    self.settings.penetrationThreshold = SliderOption("(Server authority) Penetration threshold", self.settings.penetrationThreshold, 0, 1)
     UiTranslate(0, rowHeight + rowMargins)
 
     Settings.save(self.settings)

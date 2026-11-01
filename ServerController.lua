@@ -114,10 +114,6 @@ function server.tick(deltaTime)
   for _, missileId in ipairs(markedForDestruction) do
     server.missiles[missileId] = nil
   end
-
-
-  -- TODO Investigate
-  --- Fov change when changing speed
 end
 
 function server.update(deltaTime)

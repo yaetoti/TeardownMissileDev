@@ -33,19 +33,6 @@ Missile.FIN_ROTATION_SPEED = 360.0
 Missile.PROPULSION_CHANGE_SPEED = 0.5
 
 Missile.DETONATION_TIME = 0.15
-Missile.PENETRATION_TABLE = {
-  ["foliage"] = 0.01,
-  ["glass"] = 0.1,
-  ["dirt"] = 0.1,
-  ["plaster"] = 0.1,
-  ["wood"] = 0.1,
-  ["brick"] = 0.1,
-  ["masonry"] = 0.1,
-  ["metal"] = 0.1,
-  ["rock"] = 1.0,
-  ["heavymetal"] = 0.2,
-  ["unphysical"] = 1.0,
-}
 
 function Missile.new()
   local obj = {
@@ -91,13 +78,13 @@ function Missile.new()
     ownerId = 0,
 
     -- Explosion
-    penetrationMode = false,
     isArmed = false,
     shouldDetonate = false,
+    detonationPos = nil, -- Vec3
     detonationTimer = 0.0,
-    penetration = 1.0,
 
     -- TODO missile should not explose from leaves (penetration logic)
+    -- UPD: it will explode, because API is inconsistent with giving materials. Player's house is clearly made of bricks and game knows that because of sounds. But API returns an empty string ""
     -- TODO switch modes: immediate explosion, penetration based, timer
     -- TODO camera modes: fixed 3st, fixed 1st (nose camera, maybe noise), super epic anime camera (affected by linear/angular velocity delta)
 
@@ -343,41 +330,28 @@ function Missile:update(deltaTime)
 end
 
 function Missile:_checkDetonation(deltaTime)
-  local checkPos = Missile.NOZZLE_OFFSET:fromTransformPos(self.transform)
-  local checkDir = self.forward
-  local checkDist = (Missile.NOSE_OFFSET - Missile.NOZZLE_OFFSET):length()
+  local checkPos = self.transform.pos
+  local checkDir, speed = self.velocity:normalize()
+  local checkDist = 1.0 + speed * deltaTime
   local radius = 30 * self.scale
 
   QueryRejectBody(self.entities[1])
-  --local hit, dist, normal, shape = QueryRaycast(checkPos, checkDir, checkDist, radius)
   local hit, dist, normal, shape = QueryRaycast(checkPos, checkDir, checkDist)
 
   if hit then
-    local hitPos = checkPos + checkDir * dist
+    local hitPos = VecAdd(checkPos, VecScale(checkDir, dist))
     local hasUnbreakableTag = HasTag(shape, "unbreakable")
+    if hasUnbreakableTag then
+      self.shouldDetonate = true
+      self.detonationPos = hitPos
+      return
+    end
 
     MakeHole(hitPos, radius, radius, radius)
 
-    if hasUnbreakableTag then
-      self.shouldDetonate = true
-    end
-
-    if self.penetrationMode then
-      -- Check materials
-      local material = GetShapeMaterialAtPosition(shape, hitPos)
-      if material ~= nil then
-        local penetrationLoss = Missile.PENETRATION_TABLE[material] or 0
-        self.penetration = self.penetration - penetrationLoss * self.velocity:length() * deltaTime
-        if self.penetration <= 0 then
-          self.shouldDetonate = true
-        end
-      end
-    else
-      -- Start timer
-      if not self.isArmed then
-        self.isArmed = true
-        self.detonationTimer = Settings.Get("detonationTimer")
-      end
+    -- If timer mode enabled and required penetration accumulated - start timer
+    if not self.isArmed then
+      self.isArmed = true
     end
   end
 end
@@ -602,7 +576,10 @@ function Missile:explode()
   end
 
   --local explodePoint = TransformToParentPoint(self.transform, Missile.NOSE_OFFSET)
-  local explodePoint = self.transform.pos
+  local explodePoint = self.detonationPos
+  if explodePoint == nil then
+    explodePoint = self.transform.pos
+  end
 
   SpawnFire(explodePoint)
   Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)

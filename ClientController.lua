@@ -124,9 +124,14 @@ function client.tick(deltaTime)
     end
   end
 
+  -- Tablet hide handler
+  if (not client.isControllingMissile or client.isDetached) and InputPressed("q") and (client.tabletUI.status == TabletUI.Status.SHOWN or client.tabletUI.status == TabletUI.Status.SHOWING) then
+    client.tabletUI:hide()
+  end
+
   -- Tool input
   if GetPlayerCanUseTool() and GetPlayerGrabBody() == 0 and GetPlayerTool() == ToolTabletId then
-    if InputPressed("q") then
+    if (not client.isControllingMissile or client.isDetached) and InputPressed("q") then
       client.tabletUI:toggle()
     end
 
@@ -139,7 +144,7 @@ function client.tick(deltaTime)
           client.explodeMissileServerRpc(client.missileId)
         end
       else
-        client.createMissileServerRpc()
+        client.createMissileServerRpc(client.tabletUI.settings.detonationTimer)
       end
     end
 
