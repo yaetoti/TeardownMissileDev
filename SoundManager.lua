@@ -19,6 +19,9 @@ function SoundManager:init()
     wings = LoadSound("MOD/snd/wings.ogg", 10),
     marker_success = LoadSound("MOD/snd/marker_success.ogg", 10),
     marker_fail = LoadSound("MOD/snd/marker_fail.ogg", 10),
+    boot = LoadSound("MOD/snd/boot.ogg", 10),
+    button = LoadSound("MOD/snd/button.ogg", 10),
+    crt = LoadSound("MOD/snd/crt.ogg", 10),
   }
 
   client.loops = {

@@ -103,6 +103,7 @@ function TabletUI:hide()
   if self.status == TabletUI.Status.SHOWN or self.status == TabletUI.Status.SHOWING then
     self.status = TabletUI.Status.HIDING
     self.screenState = TabletUI.ScreenState.OFF
+    client.PlaySound("button")
   end
 end
 
@@ -119,6 +120,9 @@ function TabletUI:_update(deltaTime)
   if self.status == TabletUI.Status.SHOWING then
     if self.moveProgress < 1.0 then
       self.moveProgress = Math.clamp(self.moveProgress + deltaTime / TabletUI.Config.MOVE_TIME, 0.0, 1.0)
+      if self.moveProgress >= 1.0 then
+        client.PlaySound("crt")
+      end
     elseif self.crtProgress < 1.0 then
       self.crtProgress = Math.clamp(self.crtProgress + deltaTime / TabletUI.Config.CRT_TIME, 0.0, 1.0)
       if self.crtProgress >= 1.0 then
@@ -129,6 +133,8 @@ function TabletUI:_update(deltaTime)
         -- Fast boot
         if self.settings.fastBoot then
           self.bootTimer = (#TabletUI.BootLog * TabletUI.Config.BOOT_LINE_DELAY) + TabletUI.Config.BOOT_PAUSE_TIME
+        else
+          client.PlaySound("boot")
         end
       end
     end
@@ -398,6 +404,7 @@ function TabletUI:_renderSettingsScreen(screenW, screenH)
     if TextButton(100, 48, "RESET", { 0.1, 0.3, 0.15 }, { 0.15, 0.45, 0.2 }, { 0.05, 0.2, 0.1 }, TabletUI.Config.COLOR_TEXT) then
       self.settings = Settings.new()
       Settings.save(self.settings)
+      client.PlaySound("button")
     end
     UiPop()
 
@@ -484,6 +491,7 @@ function TabletUI:_renderSettingsScreen(screenW, screenH)
           UiTranslate(canvasW - 130 - rowPadding, rowHeight * 0.5 - 22)
           local pressed = TextButton(130, 44, text, color, hoverColor, {0.05, 0.2, 0.1}, TabletUI.Config.COLOR_TEXT)
           if pressed then
+            client.PlaySound("button")
             value = not value
           end
         end
