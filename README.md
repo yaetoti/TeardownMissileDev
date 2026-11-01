@@ -6,6 +6,8 @@ This is a mod for the Teardown game that adds a controllable missile with a phys
 
 Supports multiplayer.
 
+Controllers are not supported at the moment.
+
 [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3820804315)
 
 **Controls while flying**
@@ -21,6 +23,7 @@ Supports multiplayer.
 - Launch / Reattach - LMB
 - Set a marker - RMB
 - Clear the marker - MMB
+- Open / Close settings menu - Q
 
 **Features**
 - Foldable wings and working fins both affect the dynamics of the missile
@@ -36,3 +39,14 @@ Supports multiplayer.
 - Drag: missile body (3 signed sides), wings and fins (top and front for wings, side for fins)
 - Small angular velocity damping for body (to reduce oscillations, but also because I cannot calculate every detail)
 - Lift and drag create torque depending on the surface position
+
+**Settings**
+- Sensitivity X
+- Sensitivity Y
+- Fast boot algorithm (skip the fancy animation)
+- Detonation timer (how much time will pass after the first hit before the missile detonates)
+- Spawn altitude (server only)
+- Spawn distance from the map border (server only)
+
+**Known bugs**
+- I am aware that in multiplayer, when the server heavily loaded, any non-host player experiences lag (like if the missile were updating only twice a second). I'm planning to add client prediction and interpolation (currently only server does interpolation). I also want to try moving synchronization to "shared" (instead of setting body position on server), separating it from the physics updates, which might help resolving the problem
