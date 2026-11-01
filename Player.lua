@@ -2,7 +2,7 @@ Player = {}
 Player.__index = Player
 
 function Player.new()
-  obj = {
+  local obj = {
     __type = "Player",
 
     isControllingMissile = false,

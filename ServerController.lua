@@ -1,6 +1,7 @@
 #include "Missile.lua"
 #include "Player.lua"
 #include "ReloadManager.lua"
+#include "Settings.lua"
 
 server.missiles = {}
 server.players = {}
@@ -16,9 +17,9 @@ function server.createMissile()
 end
 
 function server.randomSpawnTransform()
-  -- TODO set from tablet?
-  local margin = 500
-  local y = 70
+  local margin = Settings.Get("spawnDistance")
+  local y = Settings.Get("spawnHeight")
+  DebugPrint(y)
   local aabbMin, aabbMax = GetBoundaryBounds()
   aabbMin = VecSub(aabbMin, Vec(margin, 0, margin))
   aabbMax = VecAdd(aabbMax, Vec(margin, 0, margin))
@@ -43,6 +44,7 @@ end
 
 
 function server.init()
+  Settings.init()
   ReloadManager.markLoaded()
 
   -- Register tools
@@ -52,6 +54,7 @@ end
 function server.tick(deltaTime)
   if ReloadManager.isReload() then
     ReloadManager.initRegistry()
+    Settings.init()
     ReloadManager.reload()
     ReloadManager.markLoaded()
   end
@@ -73,6 +76,20 @@ function server.tick(deltaTime)
     end
 
     server.players[playerId] = nil
+  end
+
+  -- Update events
+  do
+    local eventCount = GetEventCount("playerdied")
+    for i = 1, eventCount do
+      local playerId = GetEvent("playerdied", i)
+      local player = server.players[playerId]
+      if player.isControllingMissile then
+        -- Destroy missiles of dead players
+        local missile = server.missiles[player.controlledMissileId]
+        missile:explode()
+      end
+    end
   end
 
   -- Update players
@@ -97,10 +114,6 @@ function server.tick(deltaTime)
   for _, missileId in ipairs(markedForDestruction) do
     server.missiles[missileId] = nil
   end
-
-
-  -- TODO Investigate
-  --- Fov change when changing speed
 end
 
 function server.update(deltaTime)

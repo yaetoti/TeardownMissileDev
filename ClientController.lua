@@ -1,7 +1,9 @@
 #include "SoundManager.lua"
 #include "ControlsWidget.lua"
+#include "TabletUI.lua"
 #include "RPC.lua"
 #include "ReloadManager.lua"
+#include "Settings.lua"
 
 -- Network
 client.activeRequests = {
@@ -23,8 +25,6 @@ client.missileBody = 0
 client.targetPos = nil
 
 -- Controls
-client.pitchSensitivity = 0.5
-client.yawSensitivity = 0.5
 client.rollSensitivity = 2.0
 client.propulsionSensitivity = 0.1
 client.roll = 0.0
@@ -34,8 +34,11 @@ client.propulsion = 0.0
 
 -- UI
 client.controlsWidget = ControlsWidget.new()
+client.tabletUI = TabletUI.new()
 
 function client.init()
+  Settings.init()
+  client.tabletUI:reloadSettings()
   ReloadManager.markLoaded()
 
   SoundManager:init()
@@ -48,11 +51,27 @@ end
 function client.tick(deltaTime)
   if ReloadManager.isReload() then
     ReloadManager.initRegistry()
+
+    Settings.init()
     ReloadManager.reload()
+    client.tabletUI:reloadSettings()
+
     ReloadManager.markLoaded()
   end
 
   SoundManager:updateLoops()
+
+  -- Update events
+  do
+    local eventCount = GetEventCount("playerdied")
+    for i = 1, eventCount do
+      local playerId = GetEvent("playerdied", i)
+      if playerId == GetLocalPlayer() then
+        -- Reset tablet
+        client.tabletUI = TabletUI.new()
+      end
+    end
+  end
 
   -- Place tools
   for _, playerId in ipairs(GetAllPlayers()) do
@@ -105,8 +124,17 @@ function client.tick(deltaTime)
     end
   end
 
+  -- Tablet hide handler
+  if (not client.isControllingMissile or client.isDetached) and InputPressed("q") and (client.tabletUI.status == TabletUI.Status.SHOWN or client.tabletUI.status == TabletUI.Status.SHOWING) then
+    client.tabletUI:hide()
+  end
+
   -- Tool input
   if GetPlayerCanUseTool() and GetPlayerGrabBody() == 0 and GetPlayerTool() == ToolTabletId then
+    if (not client.isControllingMissile or client.isDetached) and InputPressed("q") then
+      client.tabletUI:toggle()
+    end
+
     if InputPressed("lmb") then
       -- Create missile
       if client.isControllingMissile then
@@ -116,7 +144,7 @@ function client.tick(deltaTime)
           client.explodeMissileServerRpc(client.missileId)
         end
       else
-        client.createMissileServerRpc()
+        client.createMissileServerRpc(client.tabletUI.settings.detonationTimer)
       end
     end
 
@@ -157,10 +185,9 @@ function client.tick(deltaTime)
     if client.isControllingMissile and not client.isDetached then
       -- Update input
       if not client.freeCameraEnabled then
-        -- TODO remove client.freeCameraEnabled or make it a feature
         -- Get input
-        local pitchInput = InputValue("cameray") * client.pitchSensitivity
-        local yawInput = InputValue("camerax") * client.yawSensitivity
+        local pitchInput = InputValue("cameray") * client.tabletUI.settings.sensitivityY
+        local yawInput = InputValue("camerax") * client.tabletUI.settings.sensitivityX
         local propulsionInput = InputValue("mousewheel") * client.propulsionSensitivity
         local rollInput = 0.0
 
@@ -175,11 +202,9 @@ function client.tick(deltaTime)
           -- Update roll (abrupt)
           if InputDown("left") then rollInput = rollInput - 1 end
           if InputDown("right") then rollInput = rollInput + 1 end
-          --if Math.distance(rollInput, 0) < Math.EPSILON and (InputReleased("left") or InputReleased("right")) then
           if Math.distance(rollInput, 0) < Math.EPSILON then
             client.roll = 0
           else
-            --client.roll = Math.clamp(client.roll + rollInput, -1, 1)
             client.roll = Math.clamp(rollInput, -1, 1)
           end
         end
@@ -220,6 +245,9 @@ function client.tick(deltaTime)
 end
 
 function client.draw()
+  local deltaTime = GetTimeStep()
+  client.tabletUI:render(deltaTime)
+
   if not client.isControllingMissile or client.isDetached then
     return
   end

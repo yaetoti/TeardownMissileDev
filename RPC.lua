@@ -1,13 +1,13 @@
-function client.createMissileServerRpc()
+function client.createMissileServerRpc(detonationTimer)
   if client.activeRequests.createMissile or client.isControllingMissile then
     return
   end
 
   client.activeRequests.createMissile = true
-  ServerCall("server.createMissileServerRpc", GetLocalPlayer())
+  ServerCall("server.createMissileServerRpc", GetLocalPlayer(), detonationTimer)
 end
 
-function server.createMissileServerRpc(clientId)
+function server.createMissileServerRpc(clientId, detonationTimer)
   local player = server.players[clientId]
   if not player or player.isControllingMissile then
     -- Reject
@@ -18,11 +18,12 @@ function server.createMissileServerRpc(clientId)
   -- Create missile
   local missile, missileId = server.createMissile()
   missile.ownerId = clientId
+  missile.detonationTimer = detonationTimer
 
   if debugMissile then
     missile:spawn(Transform(Vec(0, 2, 6)))
   elseif debugFixedSpawn then
-    missile:spawn(Transform(Vec(0, 80, 500 + missileId * 6)))
+    missile:spawn(Transform(Vec(0, 80, 500)))
     missile.velocity = missile.forward * 25
   else
     missile:spawn(server.randomSpawnTransform())
