@@ -3,6 +3,7 @@
 #include "Missile.lua"
 #include "ControlsWidget.lua"
 #include "TabletUI.lua"
+#include "MissileModel.lua"
 
 -- Restores metatables after save/load
 
@@ -53,6 +54,7 @@ function ReloadManager.initRegistry()
     ["Missile"] = Missile,
     ["ControlsWidget"] = ControlsWidget,
     ["TabletUI"] = TabletUI,
+    ["MissileModel"] = MissileModel,
   }
 end
 

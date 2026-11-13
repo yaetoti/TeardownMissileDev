@@ -167,7 +167,7 @@ end
 ---@param transform Transform
 ---@param axis Vec axis vector (normalized)
 ---@param angle number angle (counterclockwise, degrees)
----@param pivotOffset Vec __optional__ pivot position (in the same space as transform)
+---@param pivotOffset Vec? pivot position (in the same space as transform)
 ---@return Transform
 function Math.RotateTransformAroundAxis(transform, axis, pivot, angle)
   local deltaRotation = QuatAxisAngle(axis, angle)
