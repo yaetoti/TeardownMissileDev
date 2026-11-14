@@ -222,7 +222,7 @@ function client.tick(deltaTime)
       if not debugMissile and IsHandleValid(client.missileBody) then
         local missileTransform = GetBodyTransform(client.missileBody)
 
-        local offsetVec = Missile.CAMERA_OFFSET:fromTransformVec(missileTransform)
+        local offsetVec = ServerMissile.CAMERA_OFFSET:fromTransformVec(missileTransform)
         local rot = missileTransform.rot
 
         if client.freeCameraEnabled then
@@ -233,7 +233,7 @@ function client.tick(deltaTime)
           client.freeCameraRot = QuatRotateQuat(client.freeCameraRot, deltaRot)
 
           rot = QuatRotateQuat(missileTransform.rot, client.freeCameraRot)
-          offsetVec = QuatRotateVec(rot, Missile.CAMERA_OFFSET)
+          offsetVec = QuatRotateVec(rot, ServerMissile.CAMERA_OFFSET)
         end
 
         local newTransform = Transform(VecAdd(missileTransform.pos, offsetVec), rot)

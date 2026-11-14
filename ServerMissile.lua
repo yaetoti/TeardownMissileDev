@@ -10,19 +10,25 @@
 -- TODO camera modes: fixed 3st, fixed 1st (nose camera, maybe noise), super epic anime camera (affected by linear/angular velocity delta)
 
 
-Missile = {}
-Missile.__index = Missile
+-- ~ TODO move interpolation to client
+-- ~ TODO make tick/modelUpdate capped by desired fps (20-60)
+-- TODO move offset to the MissileModel. Same stuff as fin offsets that have direct relation to the... to the flight model, gotcha! we can change offsets arbitrary, but this has to remain visual
+-- TODO rescale nozzle_offset and others by scale ( / scale) and multiply by scale everywhere
 
-Missile.EXPLOSION_STRENGTH = 4.0
-Missile.NOSE_OFFSET = Vec3.new(0, 0, -2.5)
-Missile.NOZZLE_OFFSET = Vec3.new(0, 0, 3.0)
-Missile.CAMERA_OFFSET = Vec3.new(0, 1, 6.0)
 
-Missile.DETONATION_TIME = 0.15
+ServerMissile = {}
+ServerMissile.__index = ServerMissile
 
-function Missile.new()
+ServerMissile.EXPLOSION_STRENGTH = 4.0
+ServerMissile.NOSE_OFFSET = Vec3.new(0, 0, -2.5)
+ServerMissile.NOZZLE_OFFSET = Vec3.new(0, 0, 3.0)
+ServerMissile.CAMERA_OFFSET = Vec3.new(0, 1, 6.0)
+
+ServerMissile.DETONATION_TIME = 0.15
+
+function ServerMissile.new()
   local obj = {}
-  obj.__type = "Missile"
+  obj.__type = "ServerMissile"
 
   -- Model
   obj.scale = 0.45 -- TODO what to do with the scale? I cannot get scale on server without spawning the object. keep in sync with xml file
@@ -61,10 +67,10 @@ function Missile.new()
   obj.detonationPos = nil -- Vec3
   obj.detonationTimer = 0.0
 
-  return setmetatable(obj, Missile)
+  return setmetatable(obj, ServerMissile)
 end
 
-function Missile:spawn(transform)
+function ServerMissile:spawn(transform)
   -- Not reusable
   if self.isDestroyed then
     return
@@ -113,18 +119,7 @@ function Missile:spawn(transform)
   self.engineLoop = server.CreateLoop("engine", self.model.transform.pos, 0, false, 1.0)
 end
 
-function Missile:tick(deltaTime)
-  -- + TODO check everything that addresses missile
-  -- + TODO update setting input in rpc
-  -- + TODO ensure there's no self.transform / self.forward / self.movedVariableName
-  -- + TODO check everything with self.scale
-
-  -- ~ TODO move interpolation to client
-  -- ~ TODO make tick/modelUpdate capped by desired fps (20-60)
-
-  -- TODO move offset to the MissileModel. Same stuff as fin offsets that have direct relation to the... to the flight model, gotcha! we can change offsets arbitrary, but this has to remain visual
-  -- TODO rescale nozzle_offset and others by scale ( / scale) and multiply by scale everywhere
-
+function ServerMissile:tick(deltaTime)
   if self.isDestroyed then
     return
   end
@@ -165,7 +160,7 @@ function Missile:tick(deltaTime)
   --Debug.VecInTransform(self.model.transform, self.model.finPivotPosBR, self.model.finPivotDirBR)
 end
 
-function Missile:_checkDetonation(deltaTime)
+function ServerMissile:_checkDetonation(deltaTime)
   local checkPos = self.model.transform.pos
   local checkDir, speed = self.model.velocity:normalize()
   local checkDist = 1.0 + speed * deltaTime
@@ -192,7 +187,7 @@ function Missile:_checkDetonation(deltaTime)
   end
 end
 
-function Missile:spreadWings()
+function ServerMissile:spreadWings()
   if (self.model.wingsState == MissileModel.WingsState.SPREAD) then
     return
   end
@@ -202,7 +197,7 @@ function Missile:spreadWings()
   server.PlaySoundClientRpc(0, "wings", self.model.transform.pos)
 end
 
-function Missile:foldWings()
+function ServerMissile:foldWings()
   if (self.model.wingsState == MissileModel.WingsState.FOLDED) then
     return
   end
@@ -210,7 +205,7 @@ function Missile:foldWings()
   self.model:foldWings()
 end
 
-function Missile:destroy()
+function ServerMissile:destroy()
   if self.isDestroyed then
     return
   end
@@ -235,7 +230,7 @@ function Missile:destroy()
   self.isDestroyed = true
 end
 
-function Missile:explode()
+function ServerMissile:explode()
   if self.isDestroyed then
     return
   end
@@ -247,21 +242,21 @@ function Missile:explode()
   end
 
   SpawnFire(explodePoint)
-  Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
-  Explosion(explodePoint, Missile.EXPLOSION_STRENGTH)
+  Explosion(explodePoint, ServerMissile.EXPLOSION_STRENGTH)
+  Explosion(explodePoint, ServerMissile.EXPLOSION_STRENGTH)
   server.PlaySoundClientRpc(0, "explosion", explodePoint, 1.0)
 
   self:destroy()
 end
 
-function Missile:_updateWingsTransform()
+function ServerMissile:_updateWingsTransform()
   local newLeftWingTransform = Math.RotateTransformAroundPivot(self.wingTransformLeft, self.leftWingPivot, QuatEuler(0, -self.model.wingsRotation, 0))
   local newRightWingTransform = Math.RotateTransformAroundPivot(self.wingTransformRight, self.rightWingPivot, QuatEuler(0, self.model.wingsRotation, 0))
   SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
   SetShapeLocalTransform(self.rightWing, newRightWingTransform)
 end
 
-function Missile:_updateFinsTransform()
+function ServerMissile:_updateFinsTransform()
   -- TODO unwrap
   local finsData = {
     { self.finTL, self.finTransformTL, self.model.finPivotDirTL, self.model.finPivotPosTL, self.model.finAngleTL },
@@ -283,7 +278,7 @@ function Missile:_updateFinsTransform()
   end
 end
 
-function Missile:_updateParticles(deltaTime)
+function ServerMissile:_updateParticles(deltaTime)
   if self.model.propulsion > Math.EPSILON then
     self.smokeTimer = self.smokeTimer + deltaTime
     if self.smokeTimer > 0.02 * (1.1 - self.model.propulsion) then
@@ -294,12 +289,12 @@ function Missile:_updateParticles(deltaTime)
       ParticleType("plain")
       ParticleRadius(self.model.propulsion * 0.15 + 0.1, 1.0)
       ParticleDrag(0.1)
-      SpawnParticle(Missile.NOZZLE_OFFSET:fromTransformPos(self.model.transform), velocity, 2)
+      SpawnParticle(ServerMissile.NOZZLE_OFFSET:fromTransformPos(self.model.transform), velocity, 2)
     end
   end
 end
 
-function Missile:_updateSounds()
+function ServerMissile:_updateSounds()
   shared.soundLoops[self.engineLoop].pos = self.model.transform.pos
   shared.soundLoops[self.engineLoop].volume = self.model.propulsion
 end

@@ -1,4 +1,4 @@
-#include "Missile.lua"
+#include "ServerMissile.lua"
 #include "Player.lua"
 #include "ReloadManager.lua"
 #include "Settings.lua"
@@ -9,7 +9,7 @@ server.nextMissileId = 1
 
 
 function server.createMissile()
-  local missile = Missile.new()
+  local missile = ServerMissile.new()
   local missileId = server.nextMissileId
   server.nextMissileId = server.nextMissileId + 1
   server.missiles[missileId] = missile

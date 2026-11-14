@@ -1,6 +1,7 @@
 #include "Vec3.lua"
 #include "Player.lua"
-#include "Missile.lua"
+#include "ServerMissile.lua"
+#include "ClientMissile.lua"
 #include "ControlsWidget.lua"
 #include "TabletUI.lua"
 #include "MissileModel.lua"
@@ -51,8 +52,9 @@ function ReloadManager.initRegistry()
   CLASS_REGISTRY = {
     ["Vec3"] = Vec3,
     ["Player"] = Player,
-    ["Missile"] = Missile,
     ["MissileModel"] = MissileModel,
+    ["ServerMissile"] = ServerMissile,
+    ["ClientMissile"] = ClientMissile,
     ["ControlsWidget"] = ControlsWidget,
     ["TabletUI"] = TabletUI,
   }
