@@ -2,115 +2,64 @@
 #include "Physics.lua"
 #include "SoundManager.lua"
 #include "Debug.lua"
+#include "MissileModel.lua"
 
--- Missile is facing in the -Z direction
--- LOG: Tried +Z, but it's easier to remember that forward is at negative direction, than that right is left. Camera is also looking at -Z, so with +Z I'd have to invert the body transform
+
+-- TODO missile should not explode from leaves (penetration logic)
+-- UPD: it will explode, because API is inconsistent with giving materials. Player's house is clearly made of bricks and game knows that because of sounds. But API returns an empty string ""
+-- TODO camera modes: fixed 3st, fixed 1st (nose camera, maybe noise), super epic anime camera (affected by linear/angular velocity delta)
+
 
 Missile = {}
 Missile.__index = Missile
-
-Missile.WingsState = {
-  FOLDED = 1,
-  SPREAD = 2,
-  FOLDING = 3,
-  SPREADING = 4,
-}
-Missile.WINGS_SPREADING_TIME = 0.25
-Missile.WINGS_FOLDING_TIME = 0.6
-Missile.WINGS_FOLDED_ROTATION = 0
-Missile.WINGS_SPREAD_ROTATION = 40
 
 Missile.EXPLOSION_STRENGTH = 4.0
 Missile.NOSE_OFFSET = Vec3.new(0, 0, -2.5)
 Missile.NOZZLE_OFFSET = Vec3.new(0, 0, 3.0)
 Missile.CAMERA_OFFSET = Vec3.new(0, 1, 6.0)
 
-Missile.MASS = 800
-Missile.FIN_PIVOT_SIZE = 0.3
-Missile.FIN_MAX_ANGLE = 25.0
-Missile.FIN_ROTATION_SPEED = 360.0
-
-Missile.PROPULSION_CHANGE_SPEED = 0.5
-
 Missile.DETONATION_TIME = 0.15
 
 function Missile.new()
-  local obj = {
-    __type = "Missile",
+  local obj = {}
+  obj.__type = "Missile"
 
-    -- Entities
-    entities = {},
+  -- Model
+  obj.scale = 0.45 -- TODO what to do with the scale? I cannot get scale on server without spawning the object. keep in sync with xml file
+  obj.model = MissileModel.new(obj.scale)
 
-    -- Wings visual data
-    scale = 1.0,
+  -- Entities
+  obj.entities = {}
 
-    leftWing = nil,
-    rightWing = nil,
-    wingTransformLeft = nil,
-    wingTransformRight = nil,
-    wingsOffsetY = 0.0,
+  -- Wings visual data
+  obj.leftWing = nil
+  obj.rightWing = nil
+  obj.wingTransformLeft = nil
+  obj.wingTransformRight = nil
+  obj.wingsOffsetY = 0.0
 
-    -- Fins visual data
-    finsOffsetX = 0.0,
-    finsOffsetY = 0.0,
-    finsOffsetZ = 0.0,
-    finTL = nil,
-    finTR = nil,
-    finBL = nil,
-    finBR = nil,
-    finTransformTL = nil,
-    finTransformTR = nil,
-    finTransformBL = nil,
-    finTransformBR = nil,
+  -- Fins visual data
+  obj.finTL = nil
+  obj.finTR = nil
+  obj.finBL = nil
+  obj.finBR = nil
+  obj.finTransformTL = nil
+  obj.finTransformTR = nil
+  obj.finTransformBL = nil
+  obj.finTransformBR = nil
 
-    -- Effects
-    smokeTimer = 0.0,
+  -- Effects
+  obj.smokeTimer = 0.0
 
-    -- Wings state
-    wingsRotation = Missile.WINGS_FOLDED_ROTATION,
-    wingsTargetRotation = Missile.WINGS_FOLDED_ROTATION,
-    wingsStateProgress = 1,
-    wingsSpreading = 0,
-    wingsState = Missile.WingsState.FOLDED,
+  -- Destroyed
+  obj.isDestroyed = false
+  obj.ownerId = 0
 
-    -- Destroyed
-    isDestroyed = false,
-    ownerId = 0,
-
-    -- Explosion
-    isArmed = false,
-    shouldDetonate = false,
-    detonationPos = nil, -- Vec3
-    detonationTimer = 0.0,
-
-    -- TODO missile should not explose from leaves (penetration logic)
-    -- UPD: it will explode, because API is inconsistent with giving materials. Player's house is clearly made of bricks and game knows that because of sounds. But API returns an empty string ""
-    -- TODO switch modes: immediate explosion, penetration based, timer
-    -- TODO camera modes: fixed 3st, fixed 1st (nose camera, maybe noise), super epic anime camera (affected by linear/angular velocity delta)
-
-    -- Physics
-    transform = Transform(),
-    right = Math.RIGHT,
-    up = Math.UP,
-    forward = Math.FORWARD,
-
-    velocity = Vec3.new(),
-    angularVelocity = Vec3.new(),
-    propulsion = 0.0,
-
-    -- Input
-    pitchInput = 0.0,
-    yawInput = 0.0,
-    rollInput = 0.0,
-    propulsionInput = 0.0,
-
-    -- Network sync stuff
-    syncLastPos = Vec3.new(),
-    syncNextPos = Vec3.new(),
-    syncLastRot = Quat(),
-    syncNextRot = Quat(),
-    syncTimeSinceUpdate = 0.0,
-  }
+  -- Explosion
+  obj.isArmed = false
+  obj.shouldDetonate = false
+  obj.detonationPos = nil -- Vec3
+  obj.detonationTimer = 0.0
 
   return setmetatable(obj, Missile)
 end
@@ -122,21 +71,11 @@ function Missile:spawn(transform)
   end
 
   -- Update transform and basis
-  if transform == nil then
-    transform = Transform()
-  end
-
-  self.transform = transform
-  self:_updateBasis()
-
-  -- Update sync transform
-  self.syncLastPos = VecCopy(transform.pos)
-  self.syncNextPos = VecCopy(transform.pos)
-  self.syncLastRot = QuatCopy(transform.rot)
-  self.syncNextRot = QuatCopy(transform.rot)
+  transform = transform or Transform()
+  self.model:setTransform(transform)
 
   -- Spawn entities
-  self.entities = Spawn("MOD/vox/Missile.xml", self.transform)
+  self.entities = Spawn("MOD/vox/Missile.xml", self.model.transform)
 
   self.leftWing = self.entities[8]
   self.rightWing = self.entities[7]
@@ -158,8 +97,7 @@ function Missile:spawn(transform)
   -- Calculate wings offset
   local leftWingSizeX, leftWingSizeY, leftWingSizeZ, leftWingScale = GetShapeSize(self.leftWing)
   local rightWingSizeX, rightWingSizeY, rightWingSizeZ, rightWingScale = GetShapeSize(self.rightWing)
-  self.scale = leftWingScale
-  self.wingsOffsetY = -2.5 * self.scale
+  self.wingsOffsetY = -2.5 * Math.VOXEL_SIZE * self.scale
 
   -- Move wings to their place
   self.wingTransformLeft.pos = VecAdd(self.wingTransformLeft.pos, Vec(0, self.wingsOffsetY, 0))
@@ -168,137 +106,28 @@ function Missile:spawn(transform)
   SetShapeLocalTransform(self.rightWing, self.wingTransformRight)
 
   -- Calculate wings pivot (+3 voxels from wing base)
-  self.leftWingPivot = Vec(-0.5 * leftWingSizeX * self.scale, 0, -10 * self.scale)
-  self.rightWingPivot = Vec(0.5 * rightWingSizeX * self.scale, 0, -10 * self.scale)
-
-
-  -- Calculate fins offset
-  self.finsOffsetX = 9 * self.scale
-  self.finsOffsetY = 6 * self.scale
-  self.finsOffsetZ = 41.5 * self.scale
-
-  -- Calculate fins axes (in body space)
-  self.finPivotPosTL = Vec3.new(-self.finsOffsetX, self.finsOffsetY, self.finsOffsetZ)
-  self.finPivotPosTR = Vec3.new(self.finsOffsetX, self.finsOffsetY, self.finsOffsetZ)
-  self.finPivotPosBL = Vec3.new(-self.finsOffsetX, -self.finsOffsetY, self.finsOffsetZ)
-  self.finPivotPosBR = Vec3.new(self.finsOffsetX, -self.finsOffsetY, self.finsOffsetZ)
-
-  self.finPivotDirTL = Math.UP:rotateAround(Math.FORWARD, -math.rad(45))
-  self.finPivotDirTR = Math.UP:rotateAround(Math.FORWARD, math.rad(45))
-  self.finPivotDirBL = Math.UP:rotateAround(Math.FORWARD, -math.rad(135))
-  self.finPivotDirBR = Math.UP:rotateAround(Math.FORWARD, math.rad(135))
-
-  self.finAngleTL = 0.0
-  self.finAngleTR = 0.0
-  self.finAngleBL = 0.0
-  self.finAngleBR = 0.0
-
-  self.finAngleTargetTL = 0.0
-  self.finAngleTargetTR = 0.0
-  self.finAngleTargetBL = 0.0
-  self.finAngleTargetBR = 0.0
+  self.leftWingPivot = Vec(-0.5 * leftWingSizeX * Math.VOXEL_SIZE * self.scale, 0, -10 * Math.VOXEL_SIZE * self.scale)
+  self.rightWingPivot = Vec(0.5 * rightWingSizeX * Math.VOXEL_SIZE * self.scale, 0, -10 * Math.VOXEL_SIZE * self.scale)
 
   -- Effects
-  self.engineLoop = server.CreateLoop("engine", self.transform.pos, 0, false, 1.0)
-end
-
-function Missile:_updateBasis()
-  self.right = Math.RIGHT:rotate(self.transform.rot)
-  self.up = Math.UP:rotate(self.transform.rot)
-  self.forward = Math.FORWARD:rotate(self.transform.rot)
+  self.engineLoop = server.CreateLoop("engine", self.model.transform.pos, 0, false, 1.0)
 end
 
 function Missile:tick(deltaTime)
+  -- + TODO check everything that addresses missile
+  -- + TODO update setting input in rpc
+  -- + TODO ensure there's no self.transform / self.forward / self.movedVariableName
+  -- + TODO check everything with self.scale
+
+  -- ~ TODO move interpolation to client
+  -- ~ TODO make tick/modelUpdate capped by desired fps (20-60)
+
+  -- TODO move offset to the MissileModel. Same stuff as fin offsets that have direct relation to the... to the flight model, gotcha! we can change offsets arbitrary, but this has to remain visual
+  -- TODO rescale nozzle_offset and others by scale ( / scale) and multiply by scale everywhere
+
   if self.isDestroyed then
     return
   end
-
-  -- === Interpolate position ===
-  -- TODO maybe the client should set tick transform, because there is network delay? IDK if setbodytransform allows this
-  self.syncTimeSinceUpdate = self.syncTimeSinceUpdate + deltaTime
-  local syncT = math.min(self.syncTimeSinceUpdate / Math.FIXED_DT, 1.0)
-  self.transform.pos = VecLerp(self.syncLastPos, self.syncNextPos, syncT)
-  self.transform.rot = QuatSlerp(self.syncLastRot, self.syncNextRot, syncT)
-  self:_updateBasis()
-
-  SetBodyTransform(self.entities[1], self.transform)
-
-
-  -- === Update wings ===
-  self:_updateWingsSpreading(deltaTime)
-  self:_updateWingsTransform()
-
-
-  -- === Update propulsion ===
-  self.propulsion = Math.moveTowards(self.propulsion, self.propulsionInput, Missile.PROPULSION_CHANGE_SPEED * deltaTime)
-
-
-  -- === Fins control mixing ===
-  local pitch = self.pitchInput
-  local yaw = -self.yawInput
-  local roll = self.rollInput
-
-  local xyLength = math.sqrt(pitch * pitch + yaw * yaw)
-  --pitch = pitch / xyLength
-  --yaw = yaw / xyLength
-
-  local s = 1.0
-  self.finAngleTargetTL = Math.clamp(roll + s * (pitch + yaw), -1, 1) * Missile.FIN_MAX_ANGLE
-  self.finAngleTargetTR = Math.clamp(roll + s * (-pitch + yaw), -1, 1) * Missile.FIN_MAX_ANGLE
-  self.finAngleTargetBL = Math.clamp(roll + s * (pitch - yaw), -1, 1) * Missile.FIN_MAX_ANGLE
-  self.finAngleTargetBR = Math.clamp(roll + s * (-pitch - yaw), -1, 1) * Missile.FIN_MAX_ANGLE
-
-  self.finAngleTL = Math.moveTowards(self.finAngleTL, self.finAngleTargetTL, Missile.FIN_ROTATION_SPEED * deltaTime)
-  self.finAngleTR = Math.moveTowards(self.finAngleTR, self.finAngleTargetTR, Missile.FIN_ROTATION_SPEED * deltaTime)
-  self.finAngleBL = Math.moveTowards(self.finAngleBL, self.finAngleTargetBL, Missile.FIN_ROTATION_SPEED * deltaTime)
-  self.finAngleBR = Math.moveTowards(self.finAngleBR, self.finAngleTargetBR, Missile.FIN_ROTATION_SPEED * deltaTime)
-
-  -- === Set stabilizers visual rotation ===
-  local finsData = {
-    { self.finTL, self.finTransformTL, self.finPivotDirTL, self.finPivotPosTL, self.finAngleTL },
-    { self.finTR, self.finTransformTR, self.finPivotDirTR, self.finPivotPosTR, self.finAngleTR },
-    { self.finBL, self.finTransformBL, self.finPivotDirBL, self.finPivotPosBL, self.finAngleBL },
-    { self.finBR, self.finTransformBR, self.finPivotDirBR, self.finPivotPosBR, self.finAngleBR },
-  }
-
-  for _, finData in ipairs(finsData) do
-    SetShapeLocalTransform(
-      finData[1],
-      Math.RotateTransformAroundAxis(
-        finData[2],
-        finData[3],
-        finData[4],
-        -finData[5]
-      )
-    )
-  end
-
-
-  -- === Update particles ===
-  if self.propulsion > Math.EPSILON then
-    self.smokeTimer = self.smokeTimer + deltaTime
-    if self.smokeTimer > 0.02 * (1.1 - self.propulsion) then
-      self.smokeTimer = 0.0
-
-      local velocity = -self.forward * math.max(self.forward:dot(self.velocity), 10)
-
-      ParticleType("plain")
-      ParticleRadius(self.propulsion * 0.15 + 0.1, 1.0)
-      ParticleDrag(0.1)
-      SpawnParticle(Missile.NOZZLE_OFFSET:fromTransformPos(self.transform), velocity, 2)
-    end
-  end
-
-
-  -- === Update music effects ===
-  shared.soundLoops[self.engineLoop].pos = self.transform.pos
-  shared.soundLoops[self.engineLoop].volume = self.propulsion
-
-  ---- === Draw debug axes ===
-  --Debug.VecInTransform(self.transform, self.finPivotPosTL, self.finPivotDirTL)
-  --Debug.VecInTransform(self.transform, self.finPivotPosTR, self.finPivotDirTR)
-  --Debug.VecInTransform(self.transform, self.finPivotPosBL, self.finPivotDirBL)
-  --Debug.VecInTransform(self.transform, self.finPivotPosBR, self.finPivotDirBR)
 
 
   --- === Handle detonation ===
@@ -313,27 +142,34 @@ function Missile:tick(deltaTime)
 
   if self.shouldDetonate then
     self:explode()
-  end
-end
-
-function Missile:update(deltaTime)
-  if self.isDestroyed then
     return
   end
 
-  self.syncTimeSinceUpdate = 0
 
-  -- === Update movement ===
-  if not debugMissile then
-    self:_updateMovement(deltaTime)
-  end
+  -- === Update model ===
+  self.model:update(deltaTime)
+
+
+  -- === Update transforms and visuals ===
+  SetBodyTransform(self.entities[1], self.model.transform)
+  self:_updateWingsTransform()
+  self:_updateFinsTransform()
+  self:_updateParticles(deltaTime)
+  self:_updateSounds()
+
+
+  ---- === Draw debug axes ===
+  --Debug.VecInTransform(self.model.transform, self.model.finPivotPosTL, self.model.finPivotDirTL)
+  --Debug.VecInTransform(self.model.transform, self.model.finPivotPosTR, self.model.finPivotDirTR)
+  --Debug.VecInTransform(self.model.transform, self.model.finPivotPosBL, self.model.finPivotDirBL)
+  --Debug.VecInTransform(self.model.transform, self.model.finPivotPosBR, self.model.finPivotDirBR)
 end
 
 function Missile:_checkDetonation(deltaTime)
-  local checkPos = self.transform.pos
-  local checkDir, speed = self.velocity:normalize()
+  local checkPos = self.model.transform.pos
+  local checkDir, speed = self.model.velocity:normalize()
   local checkDist = 1.0 + speed * deltaTime
-  local radius = 30 * self.scale
+  local radius = 30 * Math.VOXEL_SIZE * self.scale
 
   QueryRejectBody(self.entities[1])
   local hit, dist, normal, shape = QueryRaycast(checkPos, checkDir, checkDist)
@@ -356,193 +192,22 @@ function Missile:_checkDetonation(deltaTime)
   end
 end
 
-function Missile:_updateMovement(deltaTime)
-  local cInertia = 500 * 2
-  local cDamping = 50 * 4
-  local cThrust = 2
-  local cLift = 1
-  local cDragWings = 1
-
-  self.transform = Transform(self.syncNextPos, self.syncNextRot)
-  self:_updateBasis()
-
-  -- Parameters
-  local THRUST = 8000 * cThrust
-  local AIR_DENSITY = 1.22 -- TODO min max
-
-  --local WINGS_POS = Vec3.new(0, self.wingsOffsetY, 0)
-  --local WINGS_POS = Vec3.new(0, self.scale * 8, self.scale * 10)
-  --local WINGS_POS = Vec3.new(0, self.scale * 8, -self.scale * 3)
-  --local WINGS_POS = Vec3.new(0, self.scale * 8, 0)
-  local WINGS_POS = Vec3.new(0, 0, 0)
-  local WINGS_SIZE = self.scale * 30
-
-  local AREA_WING_TOP = 4.0
-  local CL_ALPHA_WING = 3.5 * cLift
-  local CD_WING = 1.0 * cDragWings
-
-  local AREA_FIN = 0.5
-  local CL_ALPHA_FIN = 1.5 * cLift
-  local CD_FIN = 1.0 * cDragWings
-
-  local AREA_BODY_SIDE = 8.0
-  local AREA_BODY_FRONT = 1.5
-  local CL_ALPHA_BODY = 1.0
-  local CD_BODY = 1.0
-
-  local INERTIA = Vec3.new(4, 4, 1) * cInertia
-  local TORQUE_DAMPING = Vec3.new(4, 4, 1) * cDamping
-
-  -- Pre-calculated
-  local velocityDir, velocity = self.velocity:normalize()
-  local localVelocityVec = self.velocity:toTransformVec(self.transform)
-  local localVelocityDir = localVelocityVec:normalize()
-
-  -- TODO relative velocity: wind
-  -- TODO debug
-  --DebugWatch("Position", self.transform.pos)
-  --DebugWatch("Velocity", self.velocity)
-  --DebugWatch("Local velocity", localVelocityVec)
-  --DebugWatch("Speed", velocity)
-
-
-  -- === Forces ===
-  local localForce = Vec3.new()
-  local force = Vec3.new()
-  local torque = Vec3.new()
-
-  -- Gravity
-  local fGravity = Vec3.from(GetGravity()) * Missile.MASS
-  force = force + fGravity
-
-  -- Thrust
-  local fThrust = THRUST * self.propulsion * self.forward
-  force = force + fThrust
-
-  -- == Lift / Drag ==
-
-  -- Body
-  local fLiftBody = Physics.CalculateLiftAxis(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CL_ALPHA_BODY, Math.FORWARD)
-
-  local fFrontDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_FRONT, CD_BODY, Math.FORWARD)
-  local fTopDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.UP)
-  local fSideDrag = Physics.CalculateDrag(localVelocityVec, AIR_DENSITY, AREA_BODY_SIDE, CD_BODY, Math.RIGHT)
-
-  localForce = localForce + fLiftBody + fFrontDrag + fTopDrag + fSideDrag
-
-  -- Main wings
-  if self.wingsSpreading > 0.1 then
-    local rightVec = WINGS_POS + Math.RIGHT * WINGS_SIZE * self.wingsSpreading
-    local leftVec = WINGS_POS - Math.RIGHT * WINGS_SIZE * self.wingsSpreading
-    local rightWingVelocity = Physics.PointVelocity(rightVec, localVelocityVec, self.angularVelocity)
-    local leftWingVelocity = Physics.PointVelocity(leftVec, localVelocityVec, self.angularVelocity)
-
-    local fLiftRightWing = Physics.CalculateLift(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, Math.RIGHT, Math.UP) * self.wingsSpreading
-    local fLiftLeftWing = Physics.CalculateLift(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CL_ALPHA_WING, -Math.RIGHT, Math.UP) * self.wingsSpreading
-    local tLiftRightWing = rightVec:cross(fLiftRightWing)
-    local tLiftLeftWing = leftVec:cross(fLiftLeftWing)
-
-    local fDragRightWing = Physics.CalculateDrag(rightWingVelocity, AIR_DENSITY, AREA_WING_TOP, CD_WING, Math.UP)
-    local fDragLeftWing = Physics.CalculateDrag(leftWingVelocity, AIR_DENSITY, AREA_WING_TOP, CD_WING, Math.UP)
-    local tDragRightWing = rightVec:cross(fDragRightWing)
-    local tDragLeftWing = leftVec:cross(fDragLeftWing)
-
-    localForce = localForce + fLiftRightWing + fLiftLeftWing + fDragRightWing + fDragLeftWing
-    torque = torque + tLiftRightWing + tLiftLeftWing + tDragRightWing + tDragLeftWing
-
-    -- TODO induced drag?
-
-    --Debug.VecInTransform(self.transform, WINGS_POS + rightVec, fLiftRightWing)
-    --Debug.VecInTransform(self.transform, WINGS_POS + leftVec, fLiftLeftWing)
-    --DebugPrint(tLiftRightWing:length())
-    --DebugPrint(tLiftLeftWing:length())
-
-    -- TODO debug
-    --Debug.PosInTransform(self.transform, WINGS_POS)
-    --Debug.LineInTransform(self.transform, WINGS_POS, rightVec)
-    --Debug.LineInTransform(self.transform, WINGS_POS, leftVec)
-    --
-    --Debug.VecInTransform(self.transform, rightVec, fLiftRightWing)
-    --Debug.VecInTransform(self.transform, leftVec, fLiftLeftWing)
-  end
-
-  -- Fins
-  local finsData = {
-    { self.finPivotDirTL, self.finAngleTL, self.finPivotPosTL },
-    { self.finPivotDirTR, self.finAngleTR, self.finPivotPosTR },
-    { self.finPivotDirBL, self.finAngleBL, self.finPivotPosBL },
-    { self.finPivotDirBR, self.finAngleBR, self.finPivotPosBR },
-  }
-
-  for _, finData in ipairs(finsData) do
-    local finPos = finData[3] + finData[1] * Missile.FIN_PIVOT_SIZE
-    local finPointVelocity = Physics.PointVelocity(finPos, localVelocityVec, self.angularVelocity)
-
-    local normal = Math.FORWARD:rotateAround(finData[1], math.rad(-finData[2] - 90))
-    local fLiftFin = Physics.CalculateLift(finPointVelocity, AIR_DENSITY, AREA_FIN, CL_ALPHA_FIN, finData[1], normal)
-    local tLiftFin = finPos:cross(fLiftFin)
-
-    local fDragFin = Physics.CalculateDrag(finPointVelocity, AIR_DENSITY, AREA_FIN, CD_FIN, normal)
-    local tDragFin = finPos:cross(fDragFin)
-
-    localForce = localForce + fLiftFin + fDragFin
-    torque = torque + tLiftFin + tDragFin
-
-    --Debug.PosInTransform(self.transform, finPos)
-    --Debug.VecInTransform(self.transform, finData[3], normal)
-    --Debug.VecInTransform(self.transform, finData[3], fLiftFin)
-    --DebugPrint(tLiftFin:length())
-  end
-
-  -- Damping
-  local tDampingBody = -self.angularVelocity * TORQUE_DAMPING
-  torque = torque + tDampingBody
-
-
-  -- === Combine forces ===
-  force = force + localForce:fromTransformVec(self.transform)
-
-  -- === Update last sync state ===
-  self.syncLastPos = self.syncNextPos
-  self.syncLastRot = self.syncNextRot
-
-  -- === Integrate (Linear) ===
-  local acceleration = force / Missile.MASS
-  self.velocity = self.velocity + acceleration * deltaTime
-  self.syncNextPos = VecAdd(self.syncLastPos, self.velocity * deltaTime)
-
-  -- === Integrate (Rotational) ===
-  local angularAcceleration = torque / INERTIA
-  self.angularVelocity = self.angularVelocity + angularAcceleration * deltaTime
-
-  local angularAxis, angularSpeed = self.angularVelocity:normalize()
-  if angularSpeed > Math.EPSILON then
-    local angularDeltaDegrees = math.deg(angularSpeed * deltaTime)
-    local deltaRotation = QuatAxisAngle(angularAxis, angularDeltaDegrees)
-
-    -- Local space rotation
-    self.syncNextRot = QuatRotateQuat(self.syncLastRot, deltaRotation)
-  end
-end
-
 function Missile:spreadWings()
-  if (self.wingsState == Missile.WingsState.SPREAD) then
+  if (self.model.wingsState == MissileModel.WingsState.SPREAD) then
     return
   end
 
-  self.wingsStateProgress = 1 - self.wingsStateProgress
-  self.wingsState = Missile.WingsState.SPREADING
+  self.model:spreadWings()
 
-  server.PlaySoundClientRpc(0, "wings", self.transform.pos)
+  server.PlaySoundClientRpc(0, "wings", self.model.transform.pos)
 end
 
 function Missile:foldWings()
-  if (self.wingsState == Missile.WingsState.FOLDED) then
+  if (self.model.wingsState == MissileModel.WingsState.FOLDED) then
     return
   end
 
-  self.wingsStateProgress = 1 - self.wingsStateProgress
-  self.wingsState = Missile.WingsState.FOLDING
+  self.model:foldWings()
 end
 
 function Missile:destroy()
@@ -553,8 +218,6 @@ function Missile:destroy()
   -- Delete resources
   Delete(self.entities[1])
   server.DeleteLoop(self.engineLoop)
-
-  self.isDestroyed = true
 
   -- TODO coupling
   -- TODO callbacks cannot be serialized so I moved the logic here. I could make a global handler function and a table with type, but that's a small mod, so..
@@ -568,6 +231,8 @@ function Missile:destroy()
       server.missileExplodedClientRpc(self.ownerId)
     end
   end
+
+  self.isDestroyed = true
 end
 
 function Missile:explode()
@@ -575,10 +240,10 @@ function Missile:explode()
     return
   end
 
-  --local explodePoint = TransformToParentPoint(self.transform, Missile.NOSE_OFFSET)
+  --local explodePoint = TransformToParentPoint(self.model.transform, Missile.NOSE_OFFSET)
   local explodePoint = self.detonationPos
   if explodePoint == nil then
-    explodePoint = self.transform.pos
+    explodePoint = self.model.transform.pos
   end
 
   SpawnFire(explodePoint)
@@ -589,46 +254,52 @@ function Missile:explode()
   self:destroy()
 end
 
-function Missile:_updateWingsSpreading(deltaTime)
-  -- Update wings spreading
-  if self.wingsState == Missile.WingsState.SPREADING then
-    -- Spreading
-    self.wingsStateProgress = self.wingsStateProgress + deltaTime / Missile.WINGS_SPREADING_TIME
+function Missile:_updateWingsTransform()
+  local newLeftWingTransform = Math.RotateTransformAroundPivot(self.wingTransformLeft, self.leftWingPivot, QuatEuler(0, -self.model.wingsRotation, 0))
+  local newRightWingTransform = Math.RotateTransformAroundPivot(self.wingTransformRight, self.rightWingPivot, QuatEuler(0, self.model.wingsRotation, 0))
+  SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
+  SetShapeLocalTransform(self.rightWing, newRightWingTransform)
+end
 
-    -- Finish spreading
-    if self.wingsStateProgress >= 1 then
-      self.wingsStateProgress = 1
-      self.wingsSpreading = 1
-      self.wingsState = Missile.WingsState.SPREAD
-    else
-      -- Apply easing here
-      self.wingsSpreading = Math.easeOutElastic(self.wingsStateProgress)
-    end
+function Missile:_updateFinsTransform()
+  -- TODO unwrap
+  local finsData = {
+    { self.finTL, self.finTransformTL, self.model.finPivotDirTL, self.model.finPivotPosTL, self.model.finAngleTL },
+    { self.finTR, self.finTransformTR, self.model.finPivotDirTR, self.model.finPivotPosTR, self.model.finAngleTR },
+    { self.finBL, self.finTransformBL, self.model.finPivotDirBL, self.model.finPivotPosBL, self.model.finAngleBL },
+    { self.finBR, self.finTransformBR, self.model.finPivotDirBR, self.model.finPivotPosBR, self.model.finAngleBR },
+  }
 
-    -- Update rotation
-    self.wingsRotation = Math.lerp(Missile.WINGS_FOLDED_ROTATION, Missile.WINGS_SPREAD_ROTATION, self.wingsSpreading)
-  elseif self.wingsState == Missile.WingsState.FOLDING then
-    -- Folding
-    self.wingsStateProgress = self.wingsStateProgress + deltaTime / Missile.WINGS_FOLDING_TIME
-
-    -- Finish folding
-    if self.wingsStateProgress >= 1 then
-      self.wingsStateProgress = 1
-      self.wingsSpreading = 0
-      self.wingsState = Missile.WingsState.FOLDED
-    else
-      -- Apply easing here
-      self.wingsSpreading = 1 - self.wingsStateProgress
-    end
-
-    -- Update rotation
-    self.wingsRotation = Math.lerp(Missile.WINGS_FOLDED_ROTATION, Missile.WINGS_SPREAD_ROTATION, self.wingsSpreading)
+  for _, finData in ipairs(finsData) do
+    SetShapeLocalTransform(
+      finData[1],
+      Math.RotateTransformAroundAxis(
+        finData[2],
+        finData[3],
+        finData[4],
+        -finData[5]
+      )
+    )
   end
 end
 
-function Missile:_updateWingsTransform()
-  local newLeftWingTransform = Math.RotateTransformAroundPivot(self.wingTransformLeft, self.leftWingPivot, QuatEuler(0, -self.wingsRotation, 0))
-  local newRightWingTransform = Math.RotateTransformAroundPivot(self.wingTransformRight, self.rightWingPivot, QuatEuler(0, self.wingsRotation, 0))
-  SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
-  SetShapeLocalTransform(self.rightWing, newRightWingTransform)
+function Missile:_updateParticles(deltaTime)
+  if self.model.propulsion > Math.EPSILON then
+    self.smokeTimer = self.smokeTimer + deltaTime
+    if self.smokeTimer > 0.02 * (1.1 - self.model.propulsion) then
+      self.smokeTimer = 0.0
+
+      local velocity = -self.model.forward * math.max(self.model.forward:dot(self.model.velocity), 10)
+
+      ParticleType("plain")
+      ParticleRadius(self.model.propulsion * 0.15 + 0.1, 1.0)
+      ParticleDrag(0.1)
+      SpawnParticle(Missile.NOZZLE_OFFSET:fromTransformPos(self.model.transform), velocity, 2)
+    end
+  end
+end
+
+function Missile:_updateSounds()
+  shared.soundLoops[self.engineLoop].pos = self.model.transform.pos
+  shared.soundLoops[self.engineLoop].volume = self.model.propulsion
 end

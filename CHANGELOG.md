@@ -4,10 +4,15 @@
 
 ### TODO
 
-- Decouple missile model's code from the Missile itself. Model should only predict the coords / speed / etc
+- Add ServerMissile and ClientMissile
 - Store missiles' model data in shared. Currently, it's not stored anywhere, but passed from the RPC to the specific client. Bodies are currently synchronized by the engine.
 - Make clients spawn/delete/update missile bodies
 - Add client side prediction
+
+### Done
+
+- Decouple missile model's code from the Missile itself. Model should only predict the coords / speed / etc
+- Scale is now hardcoded
 
 ### v1.2 - Network Performance Update
 

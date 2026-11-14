@@ -116,12 +116,6 @@ function server.tick(deltaTime)
   end
 end
 
-function server.update(deltaTime)
-  for missileId, missile in pairs(server.missiles) do
-    missile:update(deltaTime)
-  end
-end
-
 function server.destroy()
 
 end

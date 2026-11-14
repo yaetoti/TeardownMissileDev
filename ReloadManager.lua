@@ -52,9 +52,9 @@ function ReloadManager.initRegistry()
     ["Vec3"] = Vec3,
     ["Player"] = Player,
     ["Missile"] = Missile,
+    ["MissileModel"] = MissileModel,
     ["ControlsWidget"] = ControlsWidget,
     ["TabletUI"] = TabletUI,
-    ["MissileModel"] = MissileModel,
   }
 end
 

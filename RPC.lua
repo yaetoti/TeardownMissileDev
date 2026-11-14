@@ -24,10 +24,10 @@ function server.createMissileServerRpc(clientId, detonationTimer)
     missile:spawn(Transform(Vec(0, 2, 6)))
   elseif debugFixedSpawn then
     missile:spawn(Transform(Vec(0, 80, 500)))
-    missile.velocity = missile.forward * 25
+    missile.model.velocity = missile.model.forward * 25
   else
     missile:spawn(server.randomSpawnTransform())
-    missile.velocity = missile.forward * 25
+    missile.model.velocity = missile.model.forward * 25
   end
 
   -- Update status
@@ -187,9 +187,9 @@ function server.ToggleWingsDeploymentServerRpc(clientId, missileId)
   end
 
   local missile = server.missiles[missileId]
-  if missile.wingsState == Missile.WingsState.FOLDED or missile.wingsState == Missile.WingsState.FOLDING then
+  if missile.model.wingsState == MissileModel.WingsState.FOLDED or missile.model.wingsState == MissileModel.WingsState.FOLDING then
     missile:spreadWings()
-  elseif missile.wingsState == Missile.WingsState.SPREAD or missile.wingsState == Missile.WingsState.SPREADING then
+  elseif missile.model.wingsState == MissileModel.WingsState.SPREAD or missile.model.wingsState == MissileModel.WingsState.SPREADING then
     missile:foldWings()
   end
 end
@@ -211,8 +211,10 @@ function server.SetInputServerRpc(clientId, missileId, propulsionInput, pitchInp
   end
 
   local missile = server.missiles[missileId]
-  missile.pitchInput = Math.clamp(pitchInput, -1, 1)
-  missile.yawInput = Math.clamp(yawInput, -1, 1)
-  missile.rollInput = Math.clamp(rollInput, -1, 1)
-  missile.propulsionInput = Math.clamp01(propulsionInput)
+  missile.model:setInput(
+    Math.clamp(pitchInput, -1, 1),
+    Math.clamp(yawInput, -1, 1),
+    Math.clamp(rollInput, -1, 1),
+    Math.clamp01(propulsionInput)
+  )
 end
