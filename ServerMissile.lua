@@ -141,10 +141,6 @@ function ServerMissile:tick(deltaTime)
   end
 
 
-  -- === Update model ===
-  self.model:update(deltaTime)
-
-
   -- === Update transforms and visuals ===
   SetBodyTransform(self.entities[1], self.model.transform)
   self:_updateWingsTransform()
@@ -158,6 +154,17 @@ function ServerMissile:tick(deltaTime)
   --Debug.VecInTransform(self.model.transform, self.model.finPivotPosTR, self.model.finPivotDirTR)
   --Debug.VecInTransform(self.model.transform, self.model.finPivotPosBL, self.model.finPivotDirBL)
   --Debug.VecInTransform(self.model.transform, self.model.finPivotPosBR, self.model.finPivotDirBR)
+end
+
+function ServerMissile:update(deltaTime)
+  if self.isDestroyed then
+    return
+  end
+
+  -- TODO this is ok, but have to figure out how to update raycast then
+
+  -- === Update model ===
+  self.model:update(deltaTime)
 end
 
 function ServerMissile:_checkDetonation(deltaTime)

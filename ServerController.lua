@@ -3,23 +3,43 @@
 #include "ReloadManager.lua"
 #include "Settings.lua"
 
-server.missiles = {}
+local MISSILE_UPDATE_DT = 1 / 60
+
 server.players = {}
+server.missiles = {}
 server.nextMissileId = 1
+server.missileUpdateTimer = 0.0
+
+shared.models = {}
+shared.timestamp = 0
+
 
 
 function server.createMissile()
   local missile = ServerMissile.new()
   local missileId = server.nextMissileId
   server.nextMissileId = server.nextMissileId + 1
+
   server.missiles[missileId] = missile
+  shared.models[missileId] = missile.model
+  shared.timestamp = GetTime()
+
   return missile, missileId
 end
+
+---@param missileId number
+function server.removeMissile(missileId)
+  server.missiles[missileId] = nil
+  shared.models[missileId] = nil
+  shared.timestamp = GetTime()
+end
+
+
 
 function server.randomSpawnTransform()
   local margin = Settings.Get("spawnDistance")
   local y = Settings.Get("spawnHeight")
-  DebugPrint(y)
+
   local aabbMin, aabbMax = GetBoundaryBounds()
   aabbMin = VecSub(aabbMin, Vec(margin, 0, margin))
   aabbMax = VecAdd(aabbMax, Vec(margin, 0, margin))
@@ -58,6 +78,9 @@ function server.tick(deltaTime)
     ReloadManager.reload()
     ReloadManager.markLoaded()
   end
+
+  -- Timers
+  server.missileUpdateTimer = server.missileUpdateTimer + deltaTime
 
   -- Init connected players
   for _, playerId in ipairs(GetAddedPlayers()) do
@@ -105,6 +128,15 @@ function server.tick(deltaTime)
   local markedForDestruction = {}
   for missileId, missile in pairs(server.missiles) do
     missile:tick(deltaTime)
+
+    if server.missileUpdateTimer >= MISSILE_UPDATE_DT then
+      local updateDeltaTime = math.max(server.missileUpdateTimer, MISSILE_UPDATE_DT)
+      missile:update(updateDeltaTime)
+
+      shared.timestamp = GetTime()
+      server.missileUpdateTimer = 0.0
+    end
+
     if missile.isDestroyed then
       table.insert(markedForDestruction, missileId)
     end
@@ -112,7 +144,7 @@ function server.tick(deltaTime)
 
   -- Remove marked missiles
   for _, missileId in ipairs(markedForDestruction) do
-    server.missiles[missileId] = nil
+    server.removeMissile(missileId)
   end
 end
 
