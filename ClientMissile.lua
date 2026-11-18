@@ -34,8 +34,26 @@ ClientMissile.__index = ClientMissile
 
 -- TODO test with network lag utility
 
-function ClientMissile.new()
+
+
+-- Plan
+-- + Add facade addition/removal
+-- - Add facades updates
+-- - Add facade code
+
+function ClientMissile.new(model)
   local obj = {}
   obj.__type = "ClientMissile"
+
+  obj.model = model
+
   return setmetatable(obj, ClientMissile)
+end
+
+function ClientMissile:destroy()
+
+end
+
+function ClientMissile:tick(deltaTime)
+
 end

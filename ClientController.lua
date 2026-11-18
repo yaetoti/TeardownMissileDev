@@ -36,6 +36,42 @@ client.propulsion = 0.0
 client.controlsWidget = ControlsWidget.new()
 client.tabletUI = TabletUI.new()
 
+-- Flight model
+client.models = {}
+client.facades = {} -- client side missiles
+client.lastTimestamp = 0
+
+
+function client.updateMissileModels()
+  if client.lastTimestamp >= shared.timestamp then
+    return
+  end
+
+  client.lastTimestamp = shared.timestamp
+  -- shared models are immutable on client, so we have to make a copy
+  client.models = Utils.deepCopy(shared.models)
+
+  -- Remove deleted facades
+  for missileId, facade in pairs(client.facades) do
+    local model = client.models[missileId]
+    if not model then
+      facade:destroy()
+      client.facades[missileId] = nil
+    end
+  end
+
+  -- Add new facades
+  for missileId, model in pairs(client.models) do
+    if client.facades[missileId] == nil then
+      client.facades[missileId] = ClientMissile.new(model)
+    end
+  end
+end
+
+
+
+
+
 function client.init()
   Settings.init()
   client.tabletUI:reloadSettings()
@@ -49,6 +85,7 @@ function client.destroy()
 end
 
 function client.tick(deltaTime)
+  -- Handle reload (init is not called on reload)
   if ReloadManager.isReload() then
     ReloadManager.initRegistry()
 
@@ -59,6 +96,10 @@ function client.tick(deltaTime)
     ReloadManager.markLoaded()
   end
 
+  -- Sync missiled
+  client.updateMissileModels()
+
+  -- Update sounds
   SoundManager:updateLoops()
 
   -- Update events
