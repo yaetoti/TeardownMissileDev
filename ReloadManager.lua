@@ -26,7 +26,7 @@ local vmReloaded = true
 -- should be local, because tables get other handle after reload
 local CLASS_REGISTRY = {}
 
-local function restoreMetatables(t, visited)
+function ReloadManager.restoreMetatables(t, visited)
   if type(t) ~= "table" then return end
 
   visited = visited or {}
@@ -39,8 +39,8 @@ local function restoreMetatables(t, visited)
   end
 
   for k, v in pairs(t) do
-    restoreMetatables(k, visited)
-    restoreMetatables(v, visited)
+    ReloadManager.restoreMetatables(k, visited)
+    ReloadManager.restoreMetatables(v, visited)
   end
 end
 
@@ -74,5 +74,5 @@ function ReloadManager.isReload()
 end
 
 function ReloadManager.reload()
-  restoreMetatables(_G)
+  ReloadManager.restoreMetatables(_G)
 end

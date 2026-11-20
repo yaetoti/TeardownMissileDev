@@ -19,7 +19,6 @@ client.isDetached = false
 client.freeCameraEnabled = false
 client.freeCameraRot = Quat()
 client.missileId = 0
-client.missileBody = 0
 
 -- Target marker
 client.targetPos = nil
@@ -40,6 +39,7 @@ client.tabletUI = TabletUI.new()
 client.models = {}
 client.facades = {} -- client side missiles
 client.lastTimestamp = 0
+client.localTimestemp = 0
 
 
 function client.updateMissileModels()
@@ -47,6 +47,7 @@ function client.updateMissileModels()
     return
   end
 
+  client.localTimestemp = GetTime()
   client.lastTimestamp = shared.timestamp
   -- shared models are immutable on client, so we have to make a copy
   client.models = Utils.deepCopy(shared.models)
@@ -57,13 +58,22 @@ function client.updateMissileModels()
     if not model then
       facade:destroy()
       client.facades[missileId] = nil
+    else
+      -- Replace model immediately
+      ReloadManager.restoreMetatables(model)
+      client.facades[missileId]:updateModel(model)
     end
   end
 
   -- Add new facades
   for missileId, model in pairs(client.models) do
+    -- metatables are not passed over network
+    ReloadManager.restoreMetatables(model)
+
     if client.facades[missileId] == nil then
-      client.facades[missileId] = ClientMissile.new(model)
+      local facade = ClientMissile.new(model)
+      facade:spawn()
+      client.facades[missileId] = facade
     end
   end
 end
@@ -73,6 +83,9 @@ end
 
 
 function client.init()
+  -- TODO because of shared
+  ReloadManager.initRegistry()
+
   Settings.init()
   client.tabletUI:reloadSettings()
   ReloadManager.markLoaded()
@@ -189,7 +202,7 @@ function client.tick(deltaTime)
       end
     end
 
-    if InputPressed("space") then
+    if client.isControllingMissile and not client.isDetached and InputPressed("space") then
       client.ToggleWingsDeploymentServerRpc()
     end
 
@@ -221,8 +234,12 @@ function client.tick(deltaTime)
       end
     end
 
+    -- Update missile facades
+    for missileId, facade in pairs(client.facades) do
+      facade:tick(deltaTime)
+    end
 
-
+    -- TODO input should be before, camera should be after position update
     if client.isControllingMissile and not client.isDetached then
       -- Update input
       if not client.freeCameraEnabled then
@@ -260,8 +277,9 @@ function client.tick(deltaTime)
       end
 
       -- Update camera
-      if not debugMissile and IsHandleValid(client.missileBody) then
-        local missileTransform = GetBodyTransform(client.missileBody)
+      if not debugMissile then
+        -- TODO fix attempt to index field ? (on client in MP)
+        local missileTransform = GetBodyTransform(client.facades[client.missileId].entities[1])
 
         local offsetVec = ServerMissile.CAMERA_OFFSET:fromTransformVec(missileTransform)
         local rot = missileTransform.rot

@@ -3,7 +3,7 @@
 #include "ReloadManager.lua"
 #include "Settings.lua"
 
-local MISSILE_UPDATE_DT = 1 / 60
+MISSILE_UPDATE_DT = 1 / 144
 
 server.players = {}
 server.missiles = {}
@@ -15,13 +15,17 @@ shared.timestamp = 0
 
 
 
-function server.createMissile()
-  local missile = ServerMissile.new()
+---@return ServerMissile missile
+---@return number missile ID
+function server.createMissile(transform)
+  transform = transform or Transform()
+
+  local missile = ServerMissile.new(transform)
   local missileId = server.nextMissileId
   server.nextMissileId = server.nextMissileId + 1
 
   server.missiles[missileId] = missile
-  shared.models[missileId] = missile.model
+  shared.models[missileId] = missile.model -- TODO this causes race conditions. Maybe it's better to copy models into shared?
   shared.timestamp = GetTime()
 
   return missile, missileId
@@ -29,6 +33,8 @@ end
 
 ---@param missileId number
 function server.removeMissile(missileId)
+  -- TODO using snapshot model update propagates bug chain further: you can't just remove missile now, because model will still exist. But we have server-side command validation. Think about will that cause errors
+
   server.missiles[missileId] = nil
   shared.models[missileId] = nil
   shared.timestamp = GetTime()

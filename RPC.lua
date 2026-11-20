@@ -16,17 +16,18 @@ function server.createMissileServerRpc(clientId, detonationTimer)
   end
 
   -- Create missile
+  -- TODO this causes race conditions. Maybe it's better to copy models into shared?
   local missile, missileId = server.createMissile()
   missile.ownerId = clientId
   missile.detonationTimer = detonationTimer
 
   if debugMissile then
-    missile:spawn(Transform(Vec(0, 2, 6)))
+    missile:setTransform(Transform(Vec(0, 2, 6)))
   elseif debugFixedSpawn then
-    missile:spawn(Transform(Vec(0, 80, 500)))
+    missile:setTransform(Transform(Vec(0, 80, 500)))
     missile.model.velocity = missile.model.forward * 25
   else
-    missile:spawn(server.randomSpawnTransform())
+    missile:setTransform(server.randomSpawnTransform())
     missile.model.velocity = missile.model.forward * 25
   end
 
@@ -35,14 +36,14 @@ function server.createMissileServerRpc(clientId, detonationTimer)
   player.controlledMissileId = missileId
 
   -- Send confirmation and body
-  server.createMissileResponseClientRpc(clientId, true, missileId, missile.entities[1])
+  server.createMissileResponseClientRpc(clientId, true, missileId)
 end
 
-function server.createMissileResponseClientRpc(clientId, approval, missileId, missileBody)
-  ClientCall(clientId, "client.createMissileResponseClientRpc", approval, missileId, missileBody)
+function server.createMissileResponseClientRpc(clientId, approval, missileId)
+  ClientCall(clientId, "client.createMissileResponseClientRpc", approval, missileId)
 end
 
-function client.createMissileResponseClientRpc(approval, missileId, missileBody)
+function client.createMissileResponseClientRpc(approval, missileId)
   client.activeRequests.createMissile = false
 
   if not approval then
@@ -52,7 +53,6 @@ function client.createMissileResponseClientRpc(approval, missileId, missileBody)
   client.isControllingMissile = true
   client.isDetached = false
   client.missileId = missileId
-  client.missileBody = missileBody
 
   client.freeCameraEnabled = false
   client.freeCameraRot = Quat()
@@ -173,7 +173,7 @@ end
 
 
 function client.ToggleWingsDeploymentServerRpc()
-  if not client.isControllingMissile or not IsHandleValid(client.missileBody) then
+  if not client.isControllingMissile then
     return
   end
 

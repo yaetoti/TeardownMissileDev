@@ -16,8 +16,14 @@
 -- TODO rescale nozzle_offset and others by scale ( / scale) and multiply by scale everywhere
 
 
+-- TODO fix fucked up spawn
+-- TODO fix detonation
+-- TODO fix lags during drops (and laggy feeling overall)
+
 ServerMissile = {}
 ServerMissile.__index = ServerMissile
+
+ServerMissile.SCALE = 0.45
 
 ServerMissile.EXPLOSION_STRENGTH = 4.0
 ServerMissile.NOSE_OFFSET = Vec3.new(0, 0, -2.5)
@@ -26,36 +32,39 @@ ServerMissile.CAMERA_OFFSET = Vec3.new(0, 1, 6.0)
 
 ServerMissile.DETONATION_TIME = 0.15
 
-function ServerMissile.new()
+function ServerMissile.new(transform)
   local obj = {}
   obj.__type = "ServerMissile"
 
   -- Model
-  obj.scale = 0.45 -- TODO what to do with the scale? I cannot get scale on server without spawning the object. keep in sync with xml file
+  obj.scale = ServerMissile.SCALE -- TODO what to do with the scale? I cannot get scale on server without spawning the object. keep in sync with xml file
   obj.model = MissileModel.new(obj.scale)
 
-  -- Entities
-  obj.entities = {}
+--  -- Entities
+--  obj.entities = {}
+--
+--  -- Wings visual data
+--  obj.leftWing = nil
+--  obj.rightWing = nil
+--  obj.wingTransformLeft = nil
+--  obj.wingTransformRight = nil
+--  obj.wingsOffsetY = 0.0
+--
+--  -- Fins visual data
+--  obj.finTL = nil
+--  obj.finTR = nil
+--  obj.finBL = nil
+--  obj.finBR = nil
+--  obj.finTransformTL = nil
+--  obj.finTransformTR = nil
+--  obj.finTransformBL = nil
+--  obj.finTransformBR = nil
+--
+--  -- Effects
+--  obj.smokeTimer = 0.0
 
-  -- Wings visual data
-  obj.leftWing = nil
-  obj.rightWing = nil
-  obj.wingTransformLeft = nil
-  obj.wingTransformRight = nil
-  obj.wingsOffsetY = 0.0
-
-  -- Fins visual data
-  obj.finTL = nil
-  obj.finTR = nil
-  obj.finBL = nil
-  obj.finBR = nil
-  obj.finTransformTL = nil
-  obj.finTransformTR = nil
-  obj.finTransformBL = nil
-  obj.finTransformBR = nil
-
-  -- Effects
-  obj.smokeTimer = 0.0
+  -- Sounds
+  obj.engineLoop = nil
 
   -- Destroyed
   obj.isDestroyed = false
@@ -67,56 +76,20 @@ function ServerMissile.new()
   obj.detonationPos = nil -- Vec3
   obj.detonationTimer = 0.0
 
-  return setmetatable(obj, ServerMissile)
-end
-
-function ServerMissile:spawn(transform)
-  -- Not reusable
-  if self.isDestroyed then
-    return
-  end
 
   -- Update transform and basis
   transform = transform or Transform()
-  self.model:setTransform(transform)
+  obj.model:setTransform(transform)
 
-  -- Spawn entities
-  self.entities = Spawn("MOD/vox/Missile.xml", self.model.transform)
-
-  self.leftWing = self.entities[8]
-  self.rightWing = self.entities[7]
-
-  self.finTL = self.entities[3]
-  self.finTR = self.entities[4]
-  self.finBL = self.entities[5]
-  self.finBR = self.entities[6]
-
-  -- Get default shape transforms
-  self.wingTransformLeft = GetShapeLocalTransform(self.leftWing)
-  self.wingTransformRight = GetShapeLocalTransform(self.rightWing)
-
-  self.finTransformTL = GetShapeLocalTransform(self.finTL)
-  self.finTransformTR = GetShapeLocalTransform(self.finTR)
-  self.finTransformBL = GetShapeLocalTransform(self.finBL)
-  self.finTransformBR = GetShapeLocalTransform(self.finBR)
-
-  -- Calculate wings offset
-  local leftWingSizeX, leftWingSizeY, leftWingSizeZ, leftWingScale = GetShapeSize(self.leftWing)
-  local rightWingSizeX, rightWingSizeY, rightWingSizeZ, rightWingScale = GetShapeSize(self.rightWing)
-  self.wingsOffsetY = -2.5 * Math.VOXEL_SIZE * self.scale
-
-  -- Move wings to their place
-  self.wingTransformLeft.pos = VecAdd(self.wingTransformLeft.pos, Vec(0, self.wingsOffsetY, 0))
-  self.wingTransformRight.pos = VecAdd(self.wingTransformRight.pos, Vec(0, self.wingsOffsetY, 0))
-  SetShapeLocalTransform(self.leftWing, self.wingTransformLeft)
-  SetShapeLocalTransform(self.rightWing, self.wingTransformRight)
-
-  -- Calculate wings pivot (+3 voxels from wing base)
-  self.leftWingPivot = Vec(-0.5 * leftWingSizeX * Math.VOXEL_SIZE * self.scale, 0, -10 * Math.VOXEL_SIZE * self.scale)
-  self.rightWingPivot = Vec(0.5 * rightWingSizeX * Math.VOXEL_SIZE * self.scale, 0, -10 * Math.VOXEL_SIZE * self.scale)
-
+  -- TODO that's why you pass transform in spawn
   -- Effects
-  self.engineLoop = server.CreateLoop("engine", self.model.transform.pos, 0, false, 1.0)
+  obj.engineLoop = server.CreateLoop("engine", obj.model.transform.pos, 0, false, 1.0)
+
+  return setmetatable(obj, ServerMissile)
+end
+
+function ServerMissile:setTransform(transform)
+  self.model:setTransform(transform)
 end
 
 function ServerMissile:tick(deltaTime)
@@ -126,7 +99,8 @@ function ServerMissile:tick(deltaTime)
 
 
   --- === Handle detonation ===
-  self:_checkDetonation(deltaTime)
+  -- TODO enable
+  --self:_checkDetonation(deltaTime)
 
   if self.isArmed then
     self.detonationTimer = self.detonationTimer - deltaTime
@@ -142,10 +116,10 @@ function ServerMissile:tick(deltaTime)
 
 
   -- === Update transforms and visuals ===
-  SetBodyTransform(self.entities[1], self.model.transform)
-  self:_updateWingsTransform()
-  self:_updateFinsTransform()
-  self:_updateParticles(deltaTime)
+--  SetBodyTransform(self.entities[1], self.model.transform)
+--  self:_updateWingsTransform()
+--  self:_updateFinsTransform()
+--  self:_updateParticles(deltaTime)
   self:_updateSounds()
 
 
@@ -173,7 +147,7 @@ function ServerMissile:_checkDetonation(deltaTime)
   local checkDist = 1.0 + speed * deltaTime
   local radius = 30 * Math.VOXEL_SIZE * self.scale
 
-  QueryRejectBody(self.entities[1])
+  --QueryRejectBody(self.entities[1])
   local hit, dist, normal, shape = QueryRaycast(checkPos, checkDir, checkDist)
 
   if hit then
@@ -218,7 +192,7 @@ function ServerMissile:destroy()
   end
 
   -- Delete resources
-  Delete(self.entities[1])
+--  Delete(self.entities[1])
   server.DeleteLoop(self.engineLoop)
 
   -- TODO coupling
@@ -256,50 +230,50 @@ function ServerMissile:explode()
   self:destroy()
 end
 
-function ServerMissile:_updateWingsTransform()
-  local newLeftWingTransform = Math.RotateTransformAroundPivot(self.wingTransformLeft, self.leftWingPivot, QuatEuler(0, -self.model.wingsRotation, 0))
-  local newRightWingTransform = Math.RotateTransformAroundPivot(self.wingTransformRight, self.rightWingPivot, QuatEuler(0, self.model.wingsRotation, 0))
-  SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
-  SetShapeLocalTransform(self.rightWing, newRightWingTransform)
-end
-
-function ServerMissile:_updateFinsTransform()
-  -- TODO unwrap
-  local finsData = {
-    { self.finTL, self.finTransformTL, self.model.finPivotDirTL, self.model.finPivotPosTL, self.model.finAngleTL },
-    { self.finTR, self.finTransformTR, self.model.finPivotDirTR, self.model.finPivotPosTR, self.model.finAngleTR },
-    { self.finBL, self.finTransformBL, self.model.finPivotDirBL, self.model.finPivotPosBL, self.model.finAngleBL },
-    { self.finBR, self.finTransformBR, self.model.finPivotDirBR, self.model.finPivotPosBR, self.model.finAngleBR },
-  }
-
-  for _, finData in ipairs(finsData) do
-    SetShapeLocalTransform(
-      finData[1],
-      Math.RotateTransformAroundAxis(
-        finData[2],
-        finData[3],
-        finData[4],
-        -finData[5]
-      )
-    )
-  end
-end
-
-function ServerMissile:_updateParticles(deltaTime)
-  if self.model.propulsion > Math.EPSILON then
-    self.smokeTimer = self.smokeTimer + deltaTime
-    if self.smokeTimer > 0.02 * (1.1 - self.model.propulsion) then
-      self.smokeTimer = 0.0
-
-      local velocity = -self.model.forward * math.max(self.model.forward:dot(self.model.velocity), 10)
-
-      ParticleType("plain")
-      ParticleRadius(self.model.propulsion * 0.15 + 0.1, 1.0)
-      ParticleDrag(0.1)
-      SpawnParticle(ServerMissile.NOZZLE_OFFSET:fromTransformPos(self.model.transform), velocity, 2)
-    end
-  end
-end
+--function ServerMissile:_updateWingsTransform()
+--  local newLeftWingTransform = Math.RotateTransformAroundPivot(self.wingTransformLeft, self.leftWingPivot, QuatEuler(0, -self.model.wingsRotation, 0))
+--  local newRightWingTransform = Math.RotateTransformAroundPivot(self.wingTransformRight, self.rightWingPivot, QuatEuler(0, self.model.wingsRotation, 0))
+--  SetShapeLocalTransform(self.leftWing, newLeftWingTransform)
+--  SetShapeLocalTransform(self.rightWing, newRightWingTransform)
+--end
+--
+--function ServerMissile:_updateFinsTransform()
+--  -- TODO unwrap
+--  local finsData = {
+--    { self.finTL, self.finTransformTL, self.model.finPivotDirTL, self.model.finPivotPosTL, self.model.finAngleTL },
+--    { self.finTR, self.finTransformTR, self.model.finPivotDirTR, self.model.finPivotPosTR, self.model.finAngleTR },
+--    { self.finBL, self.finTransformBL, self.model.finPivotDirBL, self.model.finPivotPosBL, self.model.finAngleBL },
+--    { self.finBR, self.finTransformBR, self.model.finPivotDirBR, self.model.finPivotPosBR, self.model.finAngleBR },
+--  }
+--
+--  for _, finData in ipairs(finsData) do
+--    SetShapeLocalTransform(
+--      finData[1],
+--      Math.RotateTransformAroundAxis(
+--        finData[2],
+--        finData[3],
+--        finData[4],
+--        -finData[5]
+--      )
+--    )
+--  end
+--end
+--
+--function ServerMissile:_updateParticles(deltaTime)
+--  if self.model.propulsion > Math.EPSILON then
+--    self.smokeTimer = self.smokeTimer + deltaTime
+--    if self.smokeTimer > 0.02 * (1.1 - self.model.propulsion) then
+--      self.smokeTimer = 0.0
+--
+--      local velocity = -self.model.forward * math.max(self.model.forward:dot(self.model.velocity), 10)
+--
+--      ParticleType("plain")
+--      ParticleRadius(self.model.propulsion * 0.15 + 0.1, 1.0)
+--      ParticleDrag(0.1)
+--      SpawnParticle(ServerMissile.NOZZLE_OFFSET:fromTransformPos(self.model.transform), velocity, 2)
+--    end
+--  end
+--end
 
 function ServerMissile:_updateSounds()
   shared.soundLoops[self.engineLoop].pos = self.model.transform.pos
