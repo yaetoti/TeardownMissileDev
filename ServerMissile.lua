@@ -16,7 +16,6 @@
 -- TODO rescale nozzle_offset and others by scale ( / scale) and multiply by scale everywhere
 
 
--- TODO fix detonation
 -- TODO fix lags during drops (and laggy feeling overall)
 
 ServerMissile = {}
@@ -71,7 +70,7 @@ function ServerMissile:tick(deltaTime)
 
   --- === Handle detonation ===
   -- TODO enable
-  --self:_checkDetonation(deltaTime)
+  self:_checkDetonation(deltaTime)
 
   if self.isArmed then
     self.detonationTimer = self.detonationTimer - deltaTime
@@ -114,7 +113,8 @@ function ServerMissile:_checkDetonation(deltaTime)
   local checkDist = 1.0 + speed * deltaTime
   local radius = 30 * Math.VOXEL_SIZE * self.scale
 
-  --QueryRejectBody(self.entities[1])
+  -- Client-side object are very server-side when it comes to raycast -_-
+  QueryRequire("physical")
   local hit, dist, normal, shape = QueryRaycast(checkPos, checkDir, checkDist)
 
   if hit then
