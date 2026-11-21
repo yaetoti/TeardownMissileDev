@@ -16,7 +16,6 @@
 -- TODO rescale nozzle_offset and others by scale ( / scale) and multiply by scale everywhere
 
 
--- TODO fix fucked up spawn
 -- TODO fix detonation
 -- TODO fix lags during drops (and laggy feeling overall)
 
@@ -32,7 +31,7 @@ ServerMissile.CAMERA_OFFSET = Vec3.new(0, 1, 6.0)
 
 ServerMissile.DETONATION_TIME = 0.15
 
-function ServerMissile.new(transform)
+function ServerMissile.new()
   local obj = {}
   obj.__type = "ServerMissile"
 
@@ -53,12 +52,6 @@ function ServerMissile.new(transform)
   obj.detonationPos = nil -- Vec3
   obj.detonationTimer = 0.0
 
-
-  -- Update transform and basis
-  transform = transform or Transform()
-  obj.model:setTransform(transform)
-
-  -- TODO that's why you pass transform in spawn
   -- Effects
   obj.engineLoop = server.CreateLoop("engine", obj.model.transform.pos, 0, false, 1.0)
 
@@ -67,6 +60,7 @@ end
 
 function ServerMissile:setTransform(transform)
   self.model:setTransform(transform)
+  shared.soundLoops[self.engineLoop].pos = self.model.transform.pos
 end
 
 function ServerMissile:tick(deltaTime)

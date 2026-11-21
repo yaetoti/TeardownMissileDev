@@ -124,9 +124,6 @@ function MissileModel:spreadWings()
 
   self.wingsStateProgress = 1 - self.wingsStateProgress
   self.wingsState = MissileModel.WingsState.SPREADING
-
-  --TODO move to the client or server's RPC
-  --server.PlaySoundClientRpc(0, "wings", self.transform.pos)
 end
 
 function MissileModel:foldWings()

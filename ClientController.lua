@@ -67,10 +67,10 @@ function client.updateMissileModels()
 
   -- Add new facades
   for missileId, model in pairs(client.models) do
-    -- metatables are not passed over network
-    ReloadManager.restoreMetatables(model)
-
     if client.facades[missileId] == nil then
+      -- metatables are not passed over network
+      ReloadManager.restoreMetatables(model)
+
       local facade = ClientMissile.new(model)
       facade:spawn()
       client.facades[missileId] = facade
@@ -269,35 +269,35 @@ function client.tick(deltaTime)
       -- Send data to the server
       client.SetInputServerRpc(client.propulsion, client.pitch, client.yaw, client.roll)
     end
+  end
 
-    -- Update missile facades
-    for missileId, facade in pairs(client.facades) do
-      facade:tick(deltaTime)
+  -- Update missile facades
+  for missileId, facade in pairs(client.facades) do
+    facade:tick(deltaTime)
+  end
+
+  -- Update camera
+  if client.isControllingMissile and not client.isDetached and not debugMissile then
+    -- TODO fix attempt to index field ? (on client in MP)
+    local missileTransform = GetBodyTransform(client.facades[client.missileId].entities[1])
+
+    local offsetVec = ServerMissile.CAMERA_OFFSET:fromTransformVec(missileTransform)
+    local rot = missileTransform.rot
+
+    if client.freeCameraEnabled then
+      local inputX = InputValue("camerax")
+      local inputY = InputValue("cameray")
+
+      local deltaRot = QuatEuler(-inputY * 30, -inputX * 30, 0)
+      client.freeCameraRot = QuatRotateQuat(client.freeCameraRot, deltaRot)
+
+      rot = QuatRotateQuat(missileTransform.rot, client.freeCameraRot)
+      offsetVec = QuatRotateVec(rot, ServerMissile.CAMERA_OFFSET)
     end
 
-    -- Update camera
-    if client.isControllingMissile and not client.isDetached and not debugMissile then
-      -- TODO fix attempt to index field ? (on client in MP)
-      local missileTransform = GetBodyTransform(client.facades[client.missileId].entities[1])
+    local newTransform = Transform(VecAdd(missileTransform.pos, offsetVec), rot)
 
-      local offsetVec = ServerMissile.CAMERA_OFFSET:fromTransformVec(missileTransform)
-      local rot = missileTransform.rot
-
-      if client.freeCameraEnabled then
-        local inputX = InputValue("camerax")
-        local inputY = InputValue("cameray")
-
-        local deltaRot = QuatEuler(-inputY * 30, -inputX * 30, 0)
-        client.freeCameraRot = QuatRotateQuat(client.freeCameraRot, deltaRot)
-
-        rot = QuatRotateQuat(missileTransform.rot, client.freeCameraRot)
-        offsetVec = QuatRotateVec(rot, ServerMissile.CAMERA_OFFSET)
-      end
-
-      local newTransform = Transform(VecAdd(missileTransform.pos, offsetVec), rot)
-
-      SetCameraTransform(newTransform)
-    end
+    SetCameraTransform(newTransform)
   end
 end
 

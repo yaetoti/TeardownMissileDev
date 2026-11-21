@@ -130,7 +130,7 @@ function ClientMissile:updateModel(model)
 end
 
 function ClientMissile:tick(deltaTime)
-  -- TODO fix fucked up spawn (rotation + location)
+  -- TODO uncomment interpolation
 
 --  local startTime = client.localTimestemp
 --  local currentTime = GetTime()

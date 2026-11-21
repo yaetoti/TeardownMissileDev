@@ -15,28 +15,35 @@ shared.timestamp = 0
 
 
 
----@return ServerMissile missile
+---@param missile ServerMissile
 ---@return number missile ID
-function server.createMissile(transform)
-  transform = transform or Transform()
-
-  local missile = ServerMissile.new(transform)
+function server.addMissile(missile)
   local missileId = server.nextMissileId
   server.nextMissileId = server.nextMissileId + 1
 
   server.missiles[missileId] = missile
-  shared.models[missileId] = missile.model -- TODO this causes race conditions. Maybe it's better to copy models into shared?
+  shared.models[missileId] = Utils.deepCopy(missile.model)
   shared.timestamp = GetTime()
 
-  return missile, missileId
+  return missileId
 end
 
 ---@param missileId number
 function server.removeMissile(missileId)
-  -- TODO using snapshot model update propagates bug chain further: you can't just remove missile now, because model will still exist. But we have server-side command validation. Think about will that cause errors
-
   server.missiles[missileId] = nil
   shared.models[missileId] = nil
+  shared.timestamp = GetTime()
+end
+
+function server.syncModels()
+  local snapshot = {}
+  for missileId, missile in pairs(server.missiles) do
+    if not missile.isDestroyed then
+      snapshot[missileId] = Utils.deepCopy(missile.model)
+    end
+  end
+
+  shared.models = snapshot
   shared.timestamp = GetTime()
 end
 
@@ -135,14 +142,6 @@ function server.tick(deltaTime)
   for missileId, missile in pairs(server.missiles) do
     missile:tick(deltaTime)
 
-    if server.missileUpdateTimer >= MISSILE_UPDATE_DT then
-      local updateDeltaTime = math.max(server.missileUpdateTimer, MISSILE_UPDATE_DT)
-      missile:update(updateDeltaTime)
-
-      shared.timestamp = GetTime()
-      server.missileUpdateTimer = 0.0
-    end
-
     if missile.isDestroyed then
       table.insert(markedForDestruction, missileId)
     end
@@ -152,6 +151,19 @@ function server.tick(deltaTime)
   for _, missileId in ipairs(markedForDestruction) do
     server.removeMissile(missileId)
   end
+
+  -- Update physics
+  if server.missileUpdateTimer >= MISSILE_UPDATE_DT then
+    local updateDeltaTime = math.max(server.missileUpdateTimer, MISSILE_UPDATE_DT)
+    server.missileUpdateTimer = 0.0
+
+    for missileId, missile in pairs(server.missiles) do
+      missile:update(updateDeltaTime)
+    end
+  end
+
+  -- Sync models
+  server.syncModels()
 end
 
 function server.destroy()

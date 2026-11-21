@@ -16,8 +16,7 @@ function server.createMissileServerRpc(clientId, detonationTimer)
   end
 
   -- Create missile
-  -- TODO this causes race conditions. Maybe it's better to copy models into shared?
-  local missile, missileId = server.createMissile()
+  local missile = ServerMissile.new()
   missile.ownerId = clientId
   missile.detonationTimer = detonationTimer
 
@@ -30,6 +29,9 @@ function server.createMissileServerRpc(clientId, detonationTimer)
     missile:setTransform(server.randomSpawnTransform())
     missile.model.velocity = missile.model.forward * 25
   end
+
+  -- Register missile
+  local missileId = server.addMissile(missile)
 
   -- Update status
   player.isControllingMissile = true
