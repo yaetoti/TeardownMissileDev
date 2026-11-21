@@ -152,7 +152,7 @@ function server.tick(deltaTime)
     server.removeMissile(missileId)
   end
 
-  -- Update physics
+  -- Update physics and sync
   if server.missileUpdateTimer >= MISSILE_UPDATE_DT then
     local updateDeltaTime = math.max(server.missileUpdateTimer, MISSILE_UPDATE_DT)
     server.missileUpdateTimer = 0.0
@@ -160,10 +160,10 @@ function server.tick(deltaTime)
     for missileId, missile in pairs(server.missiles) do
       missile:update(updateDeltaTime)
     end
-  end
 
-  -- Sync models
-  server.syncModels()
+    -- Sync models
+    server.syncModels()
+  end
 end
 
 function server.destroy()

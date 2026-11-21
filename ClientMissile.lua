@@ -136,7 +136,7 @@ function ClientMissile:tick(deltaTime)
 --  local currentTime = GetTime()
 --  local dtInterp = currentTime - startTime
 
-  --self.model:update(deltaTime)
+  self.model:update(deltaTime)
 
   -- === Update transforms ===
   local transform = TransformCopy(self.model.transform)
