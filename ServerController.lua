@@ -3,7 +3,7 @@
 #include "ReloadManager.lua"
 #include "Settings.lua"
 
-MISSILE_UPDATE_DT = 1 / 144
+MISSILE_UPDATE_DT = 1 / 60
 
 server.players = {}
 server.missiles = {}
