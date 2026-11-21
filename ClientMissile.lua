@@ -39,13 +39,6 @@ ClientMissile.__index = ClientMissile
 
 -- TODO test with network lag utility
 
-
-
--- Plan
--- + Add facade addition/removal
--- - Add facades updates
--- - Add facade code
-
 function ClientMissile.new(model)
   local obj = {}
   obj.__type = "ClientMissile"
@@ -169,25 +162,10 @@ function ClientMissile:_updateWingsTransform()
 end
 
 function ClientMissile:_updateFinsTransform()
--- TODO unwrap
-  local finsData = {
-    { self.finTL, self.finTransformTL, self.model.finPivotDirTL, self.model.finPivotPosTL, self.model.finAngleTL },
-    { self.finTR, self.finTransformTR, self.model.finPivotDirTR, self.model.finPivotPosTR, self.model.finAngleTR },
-    { self.finBL, self.finTransformBL, self.model.finPivotDirBL, self.model.finPivotPosBL, self.model.finAngleBL },
-    { self.finBR, self.finTransformBR, self.model.finPivotDirBR, self.model.finPivotPosBR, self.model.finAngleBR },
-  }
-
-  for _, finData in ipairs(finsData) do
-    SetShapeLocalTransform(
-      finData[1],
-      Math.RotateTransformAroundAxis(
-        finData[2],
-        finData[3],
-        finData[4],
-        -finData[5]
-      )
-    )
-  end
+  SetShapeLocalTransform(self.finTL, Math.RotateTransformAroundAxis(self.finTransformTL, self.model.finPivotDirTL, self.model.finPivotPosTL, -self.model.finAngleTL))
+  SetShapeLocalTransform(self.finTR, Math.RotateTransformAroundAxis(self.finTransformTR, self.model.finPivotDirTR, self.model.finPivotPosTR, -self.model.finAngleTR))
+  SetShapeLocalTransform(self.finBL, Math.RotateTransformAroundAxis(self.finTransformBL, self.model.finPivotDirBL, self.model.finPivotPosBL, -self.model.finAngleBL))
+  SetShapeLocalTransform(self.finBR, Math.RotateTransformAroundAxis(self.finTransformBR, self.model.finPivotDirBR, self.model.finPivotPosBR, -self.model.finAngleBR))
 end
 
 function ClientMissile:_updateParticles(deltaTime)

@@ -83,7 +83,7 @@ end
 
 
 function client.init()
-  -- TODO because of shared
+  -- Shared does not transfer metatables, so we need reloading from the beginning
   ReloadManager.initRegistry()
 
   Settings.init()
@@ -234,71 +234,69 @@ function client.tick(deltaTime)
       end
     end
 
+    -- Update input
+    if client.isControllingMissile and not client.isDetached and not client.freeCameraEnabled then
+      -- Get input
+      local pitchInput = InputValue("cameray") * client.tabletUI.settings.sensitivityY
+      local yawInput = InputValue("camerax") * client.tabletUI.settings.sensitivityX
+      local propulsionInput = InputValue("mousewheel") * client.propulsionSensitivity
+      local rollInput = 0.0
+
+      if (InputDown("shift")) then
+        propulsionInput = propulsionInput * 0.1
+
+        -- Update roll (precise)
+        if InputDown("left") then rollInput = rollInput - client.rollSensitivity * deltaTime end
+        if InputDown("right") then rollInput = rollInput + client.rollSensitivity * deltaTime end
+        client.roll = Math.clamp(client.roll + rollInput, -1, 1)
+      else
+        -- Update roll (abrupt)
+        if InputDown("left") then rollInput = rollInput - 1 end
+        if InputDown("right") then rollInput = rollInput + 1 end
+        if Math.distance(rollInput, 0) < Math.EPSILON then
+          client.roll = 0
+        else
+          client.roll = Math.clamp(rollInput, -1, 1)
+        end
+      end
+
+      -- Update controls
+      client.pitch = Math.clamp(client.pitch + pitchInput, -1, 1)
+      client.yaw = Math.clamp(client.yaw + yawInput, -1, 1)
+      client.propulsion = Math.clamp01(client.propulsion + propulsionInput)
+
+      -- TODO input is known on the server already, no need to pass
+      -- Send data to the server
+      client.SetInputServerRpc(client.propulsion, client.pitch, client.yaw, client.roll)
+    end
+
     -- Update missile facades
     for missileId, facade in pairs(client.facades) do
       facade:tick(deltaTime)
     end
 
-    -- TODO input should be before, camera should be after position update
-    if client.isControllingMissile and not client.isDetached then
-      -- Update input
-      if not client.freeCameraEnabled then
-        -- Get input
-        local pitchInput = InputValue("cameray") * client.tabletUI.settings.sensitivityY
-        local yawInput = InputValue("camerax") * client.tabletUI.settings.sensitivityX
-        local propulsionInput = InputValue("mousewheel") * client.propulsionSensitivity
-        local rollInput = 0.0
+    -- Update camera
+    if client.isControllingMissile and not client.isDetached and not debugMissile then
+      -- TODO fix attempt to index field ? (on client in MP)
+      local missileTransform = GetBodyTransform(client.facades[client.missileId].entities[1])
 
-        if (InputDown("shift")) then
-          propulsionInput = propulsionInput * 0.1
+      local offsetVec = ServerMissile.CAMERA_OFFSET:fromTransformVec(missileTransform)
+      local rot = missileTransform.rot
 
-          -- Update roll (precise)
-          if InputDown("left") then rollInput = rollInput - client.rollSensitivity * deltaTime end
-          if InputDown("right") then rollInput = rollInput + client.rollSensitivity * deltaTime end
-          client.roll = Math.clamp(client.roll + rollInput, -1, 1)
-        else
-          -- Update roll (abrupt)
-          if InputDown("left") then rollInput = rollInput - 1 end
-          if InputDown("right") then rollInput = rollInput + 1 end
-          if Math.distance(rollInput, 0) < Math.EPSILON then
-            client.roll = 0
-          else
-            client.roll = Math.clamp(rollInput, -1, 1)
-          end
-        end
+      if client.freeCameraEnabled then
+        local inputX = InputValue("camerax")
+        local inputY = InputValue("cameray")
 
-        -- Update controls
-        client.pitch = Math.clamp(client.pitch + pitchInput, -1, 1)
-        client.yaw = Math.clamp(client.yaw + yawInput, -1, 1)
-        client.propulsion = Math.clamp01(client.propulsion + propulsionInput)
+        local deltaRot = QuatEuler(-inputY * 30, -inputX * 30, 0)
+        client.freeCameraRot = QuatRotateQuat(client.freeCameraRot, deltaRot)
 
-        -- Send data to the server
-        client.SetInputServerRpc(client.propulsion, client.pitch, client.yaw, client.roll)
+        rot = QuatRotateQuat(missileTransform.rot, client.freeCameraRot)
+        offsetVec = QuatRotateVec(rot, ServerMissile.CAMERA_OFFSET)
       end
 
-      -- Update camera
-      if not debugMissile then
-        -- TODO fix attempt to index field ? (on client in MP)
-        local missileTransform = GetBodyTransform(client.facades[client.missileId].entities[1])
+      local newTransform = Transform(VecAdd(missileTransform.pos, offsetVec), rot)
 
-        local offsetVec = ServerMissile.CAMERA_OFFSET:fromTransformVec(missileTransform)
-        local rot = missileTransform.rot
-
-        if client.freeCameraEnabled then
-          local inputX = InputValue("camerax")
-          local inputY = InputValue("cameray")
-
-          local deltaRot = QuatEuler(-inputY * 30, -inputX * 30, 0)
-          client.freeCameraRot = QuatRotateQuat(client.freeCameraRot, deltaRot)
-
-          rot = QuatRotateQuat(missileTransform.rot, client.freeCameraRot)
-          offsetVec = QuatRotateVec(rot, ServerMissile.CAMERA_OFFSET)
-        end
-
-        local newTransform = Transform(VecAdd(missileTransform.pos, offsetVec), rot)
-
-        SetCameraTransform(newTransform)
-      end
+      SetCameraTransform(newTransform)
     end
   end
 end
