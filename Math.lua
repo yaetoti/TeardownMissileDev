@@ -10,6 +10,10 @@ Math.RIGHT = Vec3.new(1, 0, 0)
 Math.UP = Vec3.new(0, 1, 0)
 Math.FORWARD = Vec3.new(0, 0, -1)
 
+function QuatInverse(q)
+  return Quat(-q[1], -q[2], -q[3], q[4])
+end
+
 ---@param n number
 function Math.sign(n)
   if n < 0 then return -1

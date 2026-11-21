@@ -8,6 +8,6 @@
 -- TODO remove
 -- *smirk* No.
 debugMissile = false -- TODO temporarily not working
-debugFixedSpawn = false
+debugFixedSpawn = true
 
 ToolTabletId = "tablet"

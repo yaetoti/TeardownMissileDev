@@ -279,7 +279,6 @@ function client.tick(deltaTime)
   -- We are checking that body exists, because there's no way to synchronize shared and RPC reliably
   -- Update camera
   if client.isControllingMissile and not client.isDetached and not debugMissile and client.facades[client.missileId] then
-    -- TODO fix attempt to index field ? (on client in MP. Also appeared in SP (few milliseconds after spawn))
     local missileTransform = GetBodyTransform(client.facades[client.missileId].entities[1])
 
     local offsetVec = ServerMissile.CAMERA_OFFSET:fromTransformVec(missileTransform)

@@ -4,11 +4,13 @@
 #include "Settings.lua"
 
 MISSILE_UPDATE_DT = 1 / 60
+MISSILE_REPLICATION_DT = 1 / 60
 
 server.players = {}
 server.missiles = {}
 server.nextMissileId = 1
 server.missileUpdateTimer = 0.0
+server.missileReplicationTimer = 0.0
 
 shared.models = {}
 shared.timestamp = 0
@@ -94,6 +96,7 @@ function server.tick(deltaTime)
 
   -- Timers
   server.missileUpdateTimer = server.missileUpdateTimer + deltaTime
+  server.missileReplicationTimer = server.missileReplicationTimer + deltaTime
 
   -- Init connected players
   for _, playerId in ipairs(GetAddedPlayers()) do
@@ -162,7 +165,10 @@ function server.tick(deltaTime)
     end
 
     -- Sync models
-    server.syncModels()
+    if server.missileReplicationTimer >= MISSILE_REPLICATION_DT then
+      server.missileReplicationTimer = 0.0
+      server.syncModels()
+    end
   end
 end
 

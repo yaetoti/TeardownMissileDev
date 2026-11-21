@@ -72,6 +72,7 @@ function ClientMissile.new(model)
 
   -- Interpolation
   obj.positionOffsetInterp = Vec3.new()
+  obj.rotationOffsetInterp = Quat()
 
   return setmetatable(obj, ClientMissile)
 end
@@ -119,32 +120,36 @@ end
 
 --- Call this after receiving a new model from shared
 function ClientMissile:updateModel(model)
-  -- Interpolation settings should be initialized here
+  -- Interpolation settings
+  local prevPositionInterp = Vec3.from(self.model.transform.pos) + self.positionOffsetInterp
+  local nextPositionInterp = Vec3.from(model.transform.pos)
+  self.positionOffsetInterp = prevPositionInterp - nextPositionInterp
 
-  self.prevPositionInterp = Vec3.from(self.model.transform.pos)
-  self.nextPositionInterp = Vec3.from(model.transform.pos)
-  self.positionOffsetInterp = self.prevPositionInterp - self.nextPositionInterp
+  local prevRotationInterp = QuatRotateQuat(self.model.transform.rot, self.rotationOffsetInterp)
+  local nextRotationInterp = model.transform.rot
+  self.rotationOffsetInterp = QuatRotateQuat(QuatInverse(nextRotationInterp), prevRotationInterp)
 
   -- Update model
   self.model = model
 end
 
 function ClientMissile:tick(deltaTime)
-  -- TODO uncomment interpolation
-
---  local startTime = client.localTimestemp
---  local currentTime = GetTime()
---  local dtInterp = currentTime - startTime
-
+  -- === Local prediction ===
   self.model:update(deltaTime)
 
-  -- === Update transforms ===
+  -- === Apply correction (removing jagged movement related to RTT lag. server updates models every DT, but client prediction is always ahead of that old data) ===
   local transform = TransformCopy(self.model.transform)
 
-  local usedOffset = self.positionOffsetInterp * 0.3
-  self.positionOffsetInterp = self.positionOffsetInterp - usedOffset
-  --transform.position = VecAdd(transform.position, usedOffset)
+  local DECAY_RATE = 10
+  local decay = math.exp(-DECAY_RATE * deltaTime)
 
+  self.positionOffsetInterp = self.positionOffsetInterp * decay
+  transform.pos = VecAdd(transform.pos, self.positionOffsetInterp)
+
+  self.rotationOffsetInterp = QuatSlerp(Quat(), self.rotationOffsetInterp, decay)
+  transform.rot = QuatRotateQuat(transform.rot, self.rotationOffsetInterp)
+
+  -- === Update transform ===
   SetBodyTransform(self.entities[1], transform)
   --SetBodyTransform(self.entities[1], self.model.transform)
 
